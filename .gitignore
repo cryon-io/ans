@@ -1,0 +1,6 @@
+.vscode
+state/*
+containers
+
+# exclude rules
+!state/.gitkeep 

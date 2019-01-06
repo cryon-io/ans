@@ -1,0 +1,8 @@
+{
+    "ETHO_SN" : "https://github.com/cryon-io/docker-etho-sn.git",
+    "ETHO_MN" : "https://github.com/cryon-io/docker-etho-mn.git",
+    "GINCOIN_MN" : "https://github.com/cryon-io/docker-gincoin-mn.git",
+    "ULEAD_MN" : "https://github.com/cryon-io/docker-ulead-mn.git",
+    "CROWN_SN" : "https://github.com/cryon-io/docker-crown-sn.git",
+    "SMARTCASH_SMART" :"https://github.com/cryon-io/docker-smartcash-smartnode.git"
+}

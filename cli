@@ -1,0 +1,59 @@
+#!/bin/sh
+
+#  AUTONOMOUS NODE SYSTEM
+#  Copyright © 2019 cryon.io
+#
+#  This program is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU Affero General Public License as published
+#  by the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU Affero General Public License for more details.
+#
+#  You should have received a copy of the GNU Affero General Public License
+#  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+#  Contact: cryi@tutanota.com
+
+PATH_TO_ANS=$(readlink -f "$0")
+BASEDIR=$(dirname "$PATH_TO_ANS")
+
+# shellcheck disable=SC1090
+. "$BASEDIR/_ans_methods/conf.sh"
+# shellcheck disable=SC1090
+. "$BASEDIR/_ans_methods/docker.sh"
+# shellcheck disable=SC1090
+. "$BASEDIR/_ans_methods/help.sh"
+# shellcheck disable=SC1090
+. "$BASEDIR/_ans_methods/prints.sh"
+# shellcheck disable=SC1090
+. "$BASEDIR/_ans_methods/user.sh"
+# shellcheck disable=SC1090
+. "$BASEDIR/_ans_methods/util.sh"
+# shellcheck disable=SC1090
+. "$BASEDIR/_ans_methods/dist_info.sh"
+
+require_docker_privileges() {
+    if [ "$(groups | grep "docker" || echo "true")" = "true" ] && [ "$(groups | grep "root" || echo "true")" = "true" ]; then
+        error "This option requires docker privileges. Either run ans as root or grant user docker privileges."
+        info "HINT: sudo ./ans --grant-docker"
+        exit 2
+    fi
+}
+
+# update node type
+get_node_type
+RESULT=$?
+if [ "$RESULT" = "2" ]; then 
+    error "NODE type not defined. NODE is likely not installed."
+    exit 1
+fi
+
+require_docker_privileges
+
+DEF_FILE="$BASEDIR/containers/$NODE/def.json"
+get_json_file_value "$DEF_FILE" "cli"
+sh "$BASEDIR/containers/$NODE/$JSON_VALUE" "$@"
