@@ -304,7 +304,7 @@ elif [ "$RESULT" = "1" ]; then
     NEW_NODE=true
 fi
 
-if [ -z "$PROJECT_NAME"]; then 
+if [ -z "$PROJECT_NAME" ]; then 
     get_json_file_value "$BASEDIR/state/conf.json" "project_name"
     PROJECT_NAME=${JSON_VALUE:-$NODE}
 else 
