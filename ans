@@ -523,7 +523,7 @@ elif [ -f "$BASEDIR/state/binds" ] && [ "$REAPPLY_STATE" = "true" ] && [ ! "$pas
     while IFS= read -r line; do
         if [ -n "$line" ]; then
             info "Reapplying binding '$line'"
-            BIND_PORT=$(echo "$line" | sed 's/- ".*://g')
+            BIND_PORT=$(echo "$line" | sed 's/.*://g')
             NEW_COMPOSE=$(sed "s/- \".*:$BIND_PORT\"/- \"$line\"/g" "$BASEDIR/containers/$NODE/docker-compose.yml")
             echo "$NEW_COMPOSE" > "$BASEDIR/containers/$NODE/docker-compose.yml"
         fi
@@ -695,5 +695,5 @@ if [ "$full" = "true" ] || [ "$info" = "true" ]; then
     ** this node info was also saved into $BASEDIR/containers/$NODE/data/node.info ** \
     "
     get_json_file_value "$BASEDIR/version.json" "ans"
-    printf "ANS VERSION: %s" "$JSON_VALUE"
+    printf "ANS VERSION: %s\n" "$JSON_VALUE"
 fi
