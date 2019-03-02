@@ -39,7 +39,7 @@ set_json_file_value() {
 # $2 key
 get_json_file_value() {
     JSON_VALUE=$(jq ".[\"$2\"]" "$1" -r 2>/dev/null)
-    JSON_VALUE=$(if [ ! "$JSON_VALUE" = "null" ]; then printf "%s" "$JSON_VALUE"; fi)
+    JSON_VALUE=$(if [ ! "$JSON_VALUE" = "null" ] && [ ! "$JSON_VALUE" = "undefined" ]; then printf "%s" "$JSON_VALUE"; fi)
 }
 
 
@@ -48,7 +48,7 @@ get_json_file_value() {
 # $2 key
 get_json_value() {
     JSON_VALUE=$(printf "%s\n" "$1" | jq ".[\"$2\"]" -r 2>/dev/null)
-    JSON_VALUE=$(if [ ! "$JSON_VALUE" = "null" ]; then printf "%s" "$JSON_VALUE"; fi)
+    JSON_VALUE=$(if [ ! "$JSON_VALUE" = "null" ] && [ ! "$JSON_VALUE" = "undefined" ]; then printf "%s" "$JSON_VALUE"; fi)
 }
 
 # clones git repository to specified folder
