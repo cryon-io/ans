@@ -75,7 +75,6 @@ parse_params() {
                 ;;
             -f|--full)
                 full=true
-                REAPPLY_STATE=true
                 noCache="--no-cache"
                 forceRecreate="--force-recreate"
                 ;;
@@ -88,16 +87,13 @@ parse_params() {
                 ;; 
             -r|--restart)
                 start=true
-                REAPPLY_STATE=true
                 forceRecreate="--force-recreate"
                 ;;    
             -b|--build)
                 build=true
-                REAPPLY_STATE=true
                 ;;
             -s|--start)
                 start=true
-                REAPPLY_STATE=true
                 ;;   
             --stop)
                 stop=true
@@ -107,11 +103,9 @@ parse_params() {
                 ;;
             -us|--update-service)
                 UPDATE_SERVICE=true
-                REAPPLY_STATE=true
                 ;;
             -uc|--update-ans)
                 UPDATE_ANS=true
-                REAPPLY_STATE=true
                 ;;
             --project-name=*)
                 PROJECT_NAME=$(echo "$arg" | sed 's/--project-name=//g')
@@ -372,12 +366,13 @@ if [ "$full" = "true" ] || [ "$UPDATE_ANS" = "true" ]; then
 fi
 
 # Clone service repository if not yet cloned
-if [ ! -d "$BASEDIR/containers/$NODE" ]; then
-    
+if ! git --git-dir="$BASEDIR/containers/$NODE/.git" rev-parse --git-dir > /dev/null 2>&1; then
     REPOSITORY_URL=$(jq ".$NODE" "$BASEDIR/supported_nodes.json" -r 2>/dev/null)
     info "Cloning repository: $REPOSITORY_URL"
     clone_repository "$REPOSITORY_URL" "$BASEDIR/containers/$NODE"
     repository_branch_switch "$BASEDIR/containers/$NODE" "$NODE_BRANCH"
+else 
+    reset_repository "$BASEDIR/containers/$NODE"
 fi
 
 # update service
@@ -458,7 +453,7 @@ if [ "$setEnv" = "true" ]; then
                 ;;
         esac
     done
-elif [ -f "$BASEDIR/state/environment" ] && [ "$REAPPLY_STATE" = "true" ] && [ ! "$passed" = "true" ]; then
+elif [ -f "$BASEDIR/state/environment" ] && [ ! "$passed" = "true" ]; then
     while IFS= read -r line; do
         if [ -n "$line" ]; then
             info "Reapplying env variable '$line'"
@@ -493,7 +488,7 @@ if [ "$setParams" = "true" ]; then
                 ;;
         esac
     done
-elif [ -f "$BASEDIR/state/parameters" ] && [ "$REAPPLY_STATE" = "true" ] && [ ! "$passed" = "true" ]; then
+elif [ -f "$BASEDIR/state/parameters" ] && [ ! "$passed" = "true" ]; then
     while IFS= read -r line; do
         if [ -n "$line" ]; then
             info "Reapplying parameter '$line'"
@@ -519,7 +514,7 @@ if [ "$bind" = "true" ]; then
                 ;;
         esac
     done
-elif [ -f "$BASEDIR/state/binds" ] && [ "$REAPPLY_STATE" = "true" ] && [ ! "$passed" = "true" ]; then
+elif [ -f "$BASEDIR/state/binds" ] && [ ! "$passed" = "true" ]; then
     while IFS= read -r line; do
         if [ -n "$line" ]; then
             info "Reapplying binding '$line'"
@@ -531,7 +526,7 @@ elif [ -f "$BASEDIR/state/binds" ] && [ "$REAPPLY_STATE" = "true" ] && [ ! "$pas
 fi
 
 # grant docker permissions
-if [ "$full" = "true" ] && [ ! "$disableAutoUpdate" = "true" ] || [ "$grantDocker" = "true" ]; then
+if [ "$full" = "true" ] || [ "$grantDocker" = "true" ]; then
     if [ "$(groups "$USER" | grep "docker" || echo "true")" = "true" ] && [ "$(groups "$USER" | grep "root" || echo "true")" = "true" ]; then
         require_root_privileges
         usermod -a -G docker "$USER"
@@ -542,6 +537,21 @@ if [ "$full" = "true" ] && [ ! "$disableAutoUpdate" = "true" ] || [ "$grantDocke
         fi
     else 
         success "Docker privileges are already granted to $USER"
+    fi
+fi
+
+serviceDef="$BASEDIR/containers/$NODE/docker-compose.yml"
+# build service
+if [ "$full" = "true" ] || [ "$build" = "true" ]; then
+    if [ "$user" = "true" ]; then
+        runuser -l "$USER" -c "sh $PATH_TO_ANS -b --passed"
+    else
+        require_docker_privileges
+        if [ ! -f "$serviceDef" ]; then
+            error "Cannot find $NODE definition file: $serviceDef"
+            exit 8;
+        fi
+        build_service "$BASEDIR/containers/$NODE/docker-compose.yml" "$noCache" "$PROJECT_NAME"
     fi
 fi
 
@@ -561,21 +571,6 @@ if [ "$full" = "true" ] || [ "$build" = "true"  ]; then
         fi
     fi
 fi 
-
-serviceDef="$BASEDIR/containers/$NODE/docker-compose.yml"
-# build service
-if [ "$full" = "true" ] || [ "$build" = "true" ]; then
-    if [ "$user" = "true" ]; then
-        runuser -l "$USER" -c "sh $PATH_TO_ANS -b --passed"
-    else
-        require_docker_privileges
-        if [ ! -f "$serviceDef" ]; then
-            error "Cannot find $NODE definition file: $serviceDef"
-            exit 8;
-        fi
-        build_service "$BASEDIR/containers/$NODE/docker-compose.yml" "$noCache" "$PROJECT_NAME"
-    fi
-fi
 
 # start service
 if [ "$full" = "true" ] || [ "$start" = "true" ]; then

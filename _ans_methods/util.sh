@@ -56,11 +56,23 @@ get_json_value() {
 # $2 - output directory
 clone_repository() {
     if [ -n "$2" ]; then
-        git clone "$1" "$2"
+        git -q init "$2"
+        if ! git --git-dir="$2/.git" --work-tree="$2" remote set-url origin "$1"; then 
+            git --git-dir="$2/.git" --work-tree="$2" remote add origin "$1"
+        fi
+        git --git-dir="$2/.git" --work-tree="$2" fetch --all
+        git --git-dir="$2/.git" --work-tree="$2" reset --hard origin/master
+        #git clone "$1" "$2"
         return 0
     else 
         return 1
     fi
+}
+
+# resets git repository to latest commit 
+# $1 path to git repository
+reset_repository() {
+    git --git-dir="$1/.git" reset --hard
 }
 
 repository_branch_switch() {
