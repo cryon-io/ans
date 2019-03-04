@@ -456,7 +456,7 @@ if [ "$setEnv" = "true" ]; then
 elif [ -f "$BASEDIR/state/environment" ] && [ ! "$passed" = "true" ]; then
     while IFS= read -r line; do
         if [ -n "$line" ]; then
-            info "Reapplying env variable '$line'"
+            # info "Reapplying env variable '$line'"
             if [ -f "$ENV_SETTER" ]; then
                 sh "$ENV_SETTER" "$line" 
             fi
@@ -491,7 +491,7 @@ if [ "$setParams" = "true" ]; then
 elif [ -f "$BASEDIR/state/parameters" ] && [ ! "$passed" = "true" ]; then
     while IFS= read -r line; do
         if [ -n "$line" ]; then
-            info "Reapplying parameter '$line'"
+            # info "Reapplying parameter '$line'"
             if [ -f "$PARAM_SETTER" ]; then
                 sh "$PARAM_SETTER" "$line" 
             fi
@@ -517,7 +517,7 @@ if [ "$bind" = "true" ]; then
 elif [ -f "$BASEDIR/state/binds" ] && [ ! "$passed" = "true" ]; then
     while IFS= read -r line; do
         if [ -n "$line" ]; then
-            info "Reapplying binding '$line'"
+            # info "Reapplying binding '$line'"
             BIND_PORT=$(echo "$line" | sed 's/.*://g')
             NEW_COMPOSE=$(sed "s/- \".*:$BIND_PORT\"/- \"$line\"/g" "$BASEDIR/containers/$NODE/docker-compose.yml")
             echo "$NEW_COMPOSE" > "$BASEDIR/containers/$NODE/docker-compose.yml"

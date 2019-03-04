@@ -56,7 +56,7 @@ get_json_value() {
 # $2 - output directory
 clone_repository() {
     if [ -n "$2" ]; then
-        git -q init "$2"
+        git init -q "$2"
         if ! git --git-dir="$2/.git" --work-tree="$2" remote set-url origin "$1"; then 
             git --git-dir="$2/.git" --work-tree="$2" remote add origin "$1"
         fi
