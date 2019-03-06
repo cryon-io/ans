@@ -72,7 +72,7 @@ clone_repository() {
 # resets git repository to latest commit 
 # $1 path to git repository
 reset_repository() {
-    git --git-dir="$1/.git" reset --hard
+    git --git-dir="$1/.git" --work-tree="$1" reset --hard > /dev/null
 }
 
 repository_branch_switch() {
