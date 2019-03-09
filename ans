@@ -166,6 +166,14 @@ parse_params() {
             --node-branch=*)
                 NODE_BRANCH=$(echo "$arg" | sed 's/--ans-branch=//g')
                 ;;
+            --prune)
+                PRUNE=true
+                stop=true
+            ;;
+            --prune-data)
+                PRUNE_DATA=true
+                stop=true
+            ;;
             --docker-prune)
                 dockerPrune=true
                 ;;
@@ -294,7 +302,16 @@ elif [ "$RESULT" = "1" ]; then
     require_docker_privileges
     get_json_file_value "$BASEDIR/state/conf.json" "project_name"
     OLD_PROJECT_NAME=${JSON_VALUE:-$OLD_NODE}
-    stop_service "$BASEDIR/containers/$OLD_NODE/docker-compose.yml" "$OLD_PROJECT_NAME"
+    i=0
+    while sh "$BASEDIR/is-up"; do
+        stop_service "$BASEDIR/containers/$OLD_NODE/docker-compose.yml" "$OLD_PROJECT_NAME"
+        i="$((i+1))"
+        if [ "$i" -gt "4" ]; then
+            error "Node stop retry limit reached. Failed to stop node."
+            info "Please stop node manually and retry..."
+            exit 15
+        fi
+    done
     NEW_NODE=true
 fi
 
@@ -307,7 +324,27 @@ fi
 
 if [ -n "$NODE" ] && [ "$stop" = "true" ]; then
     require_docker_privileges
-    stop_service "$BASEDIR/containers/$NODE/docker-compose.yml" "$PROJECT_NAME"
+    i=0
+    while sh "$BASEDIR/is-up"; do
+        stop_service "$BASEDIR/containers/$NODE/docker-compose.yml" "$PROJECT_NAME"
+        i="$((i+1))"
+        if [ "$i" -gt "5" ]; then
+            error "Node stop retry limit reached. Failed to stop node."
+            exit 15
+        fi
+    done
+fi
+
+if [ "$PRUNE" = "true" ]; then
+    require_root_privileges
+    rm -rf "$BASEDIR/containers/*" || \
+    { error "Failed prune containers. Please retry..." && exit 16; } 
+fi
+
+if [ "$PRUNE_DATA" = "true" ]; then
+    require_root_privileges
+    rm -rf "$BASEDIR/containers/$NODE/data/*" || \
+    { error "Failed prune node data. Please retry..." && exit 17; } 
 fi
 
 # check, if node type supported
@@ -426,6 +463,7 @@ if [ "$full" = "true" ] || [ "$restoreFilePermissions" = "true" ]; then
     chmod g+x "$PATH_TO_ANS"
     chmod +x "$PATH_TO_ANS"
     chmod +x "$BASEDIR/cli"
+    chmod +x "$BASEDIR/is-up"
 
     DEF_FILE="$BASEDIR/containers/$NODE/def.json"
 
@@ -685,10 +723,19 @@ if [ "$full" = "true" ] || [ "$info" = "true" ]; then
     info "NODE DETAILS:"
     DEF_FILE="$BASEDIR/containers/$NODE/def.json"
     get_json_file_value "$DEF_FILE" "node-info"
-    sh "$BASEDIR/containers/$NODE/$JSON_VALUE"
-    info "\
-    ** this node info was also saved into $BASEDIR/containers/$NODE/data/node.info ** \
-    "
+    INFO_FROM_NODE=$(sh "$BASEDIR/containers/$NODE/$JSON_VALUE")
+
+    get_json_file_value "$DEF_FILE" "version"
+    TEMPLATE_VERSION="$JSON_VALUE"
+    
     get_json_file_value "$BASEDIR/version.json" "ans"
-    printf "ANS VERSION: %s\n" "$JSON_VALUE"
+    printf "%s
+TEMPLATE VERSION: %s
+ANS VERSION: %s\n" "$INFO_FROM_NODE" "$TEMPLATE_VERSION" "$JSON_VALUE" > $BASEDIR/node.info
+    printf "%s
+TEMPLATE VERSION: %s
+ANS VERSION: %s\n" "$INFO_FROM_NODE" "$TEMPLATE_VERSION" "$JSON_VALUE"
+    info "\
+    ** this node info was also saved into $BASEDIR/node.info ** \
+    "
 fi

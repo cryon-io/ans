@@ -38,6 +38,8 @@ Usage:
     --node-branch=[branch]                      Selects branch from node repository
 
     --project-name                              Sets project name for node instance 
+    --prune                                     Deletes node service and data (chain, wallet, etc.)
+    --prune-data                                Deletes node data (chain, wallet, etc.)
     --docker-prune                              Runs docker system cleanup. Requires confirmations. (Removes old containers and images)
 
     -f|--full                                   Runs all of the commands below.
@@ -58,7 +60,7 @@ Usage:
     -us|--update-service                        Updates service definitions for node
     -uc|--update-ans                            Updates this ans
 
-    -rp|--restore-permissions                   Restores required chmod +x and directory permissions
+    -rfp|--restore-file-permissions             Restores required chmod +x and directory permissions
     -i|--node-info                              Prints node version
     -au|--auto-update                           Adds cron job for auto update
                                                 * uses lowest auto update level - only node binary update
