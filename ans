@@ -281,12 +281,13 @@ if [ "$full" = "true" ] || [ "$dependencies" = "true" ]; then
     chmod +x /usr/local/bin/docker-compose
     docker-compose --version || \
     { error "Failed to install or run docker-compose. Please retry..." && exit 10; }
-    # connect ANS repository in case it was downloaded as zip
-    if ! git --git-dir="$BASEDIR/.git" --work-tree="$BASEDIR" remote get-url origin 2>/dev/null; then 
-        git --git-dir="$BASEDIR/.git" --work-tree="$BASEDIR" init
-        git --git-dir="$BASEDIR/.git" --work-tree="$BASEDIR" remote add origin https://github.com/cryon-io/ans.git
-        git --git-dir="$BASEDIR/.git" --work-tree="$BASEDIR" fetch --all
-    fi
+fi
+
+# connect ANS repository in case it was downloaded as zip
+if ! git --git-dir="$BASEDIR/.git" --work-tree="$BASEDIR" remote get-url origin >/dev/null 2>&1; then 
+    git --git-dir="$BASEDIR/.git" --work-tree="$BASEDIR" init
+    git --git-dir="$BASEDIR/.git" --work-tree="$BASEDIR" remote add origin https://github.com/cryon-io/ans.git
+    git --git-dir="$BASEDIR/.git" --work-tree="$BASEDIR" fetch --all
 fi
 
 # update node type
