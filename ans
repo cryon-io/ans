@@ -304,7 +304,7 @@ elif [ "$RESULT" = "1" ]; then
     get_json_file_value "$BASEDIR/state/conf.json" "project_name"
     OLD_PROJECT_NAME=${JSON_VALUE:-$OLD_NODE}
     i=0
-    while sh "$BASEDIR/is-up"; do
+    while sh "$BASEDIR/is-up" >/dev/null; do
         stop_service "$BASEDIR/containers/$OLD_NODE/docker-compose.yml" "$OLD_PROJECT_NAME"
         i="$((i+1))"
         if [ "$i" -gt "4" ]; then
@@ -326,7 +326,7 @@ fi
 if [ -n "$NODE" ] && [ "$stop" = "true" ]; then
     require_docker_privileges
     i=0
-    while sh "$BASEDIR/is-up"; do
+    while sh "$BASEDIR/is-up" >/dev/null; do
         stop_service "$BASEDIR/containers/$NODE/docker-compose.yml" "$PROJECT_NAME"
         i="$((i+1))"
         if [ "$i" -gt "5" ]; then
@@ -338,13 +338,13 @@ fi
 
 if [ "$PRUNE" = "true" ]; then
     require_root_privileges
-    rm -rf "$BASEDIR/containers/*" || \
+    rm -r "$BASEDIR/containers/"* || \
     { error "Failed prune containers. Please retry..." && exit 16; } 
 fi
 
 if [ "$PRUNE_DATA" = "true" ]; then
     require_root_privileges
-    rm -rf "$BASEDIR/containers/$NODE/data/*" || \
+    rm -r "$BASEDIR/containers/$NODE/data/"* || \
     { error "Failed prune node data. Please retry..." && exit 17; } 
 fi
 
