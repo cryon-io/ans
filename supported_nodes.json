@@ -4,6 +4,7 @@
     "GINCOIN_MN" : "https://github.com/cryon-io/docker-gincoin-mn.git",
     "ULEAD_MN" : "https://github.com/cryon-io/docker-ulead-mn.git",
     "CROWN_SN" : "https://github.com/cryon-io/docker-crown-sn.git",
+    "CROWN_MN" : "https://github.com/cryon-io/docker-crown-mn.git",
     "WIRE_MN" : "https://github.com/cryon-io/docker-wire-mn.git",
     "SMARTCASH_SMART" :"https://github.com/cryon-io/docker-smartcash-smartnode.git"
 }
