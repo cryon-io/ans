@@ -57,7 +57,9 @@ require_docker_privileges
 COMPOSE_FILE="$BASEDIR/containers/$NODE/docker-compose.yml"
 get_json_file_value "$BASEDIR/state/conf.json" "project_name"
 PROJECT_NAME=${JSON_VALUE:-$NODE}
-if [ "$(docker-compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" ps -q mn | wc -l)" -gt "0" ]; then 
+
+SERVICES=$(($(docker-compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" ps --services | wc -l) - 1))
+if [ "$(docker-compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" ps -q | wc -l)" -ge "$SERVICES" ]; then 
     printf "true"; 
     exit 0;
 else 
