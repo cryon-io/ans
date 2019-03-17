@@ -8,5 +8,6 @@
     "CROWN_MN" : "https://github.com/cryon-io/docker-crown-mn.git",
     "WIRE_MN" : "https://github.com/cryon-io/docker-wire-mn.git",
     "SMARTCASH_SMART" :"https://github.com/cryon-io/docker-smartcash-smartnode.git",
-    "ZEST_MN" : "https://github.com/cryon-io/docker-zest-mn.git"
+    "ZEST_MN" : "https://github.com/cryon-io/docker-zest-mn.git",
+    "SNODE_MN" : "https://github.com/cryon-io/docker-snode-mn.git"
 }
