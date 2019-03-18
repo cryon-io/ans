@@ -55,6 +55,10 @@ fi
 require_docker_privileges
 
 COMPOSE_FILE="$BASEDIR/containers/$NODE/docker-compose.yml"
+if [ ! -f "$COMPOSE_FILE" ]; then 
+    printf "false";
+    exit 1;
+fi
 get_json_file_value "$BASEDIR/state/conf.json" "project_name"
 PROJECT_NAME=${JSON_VALUE:-$NODE}
 
