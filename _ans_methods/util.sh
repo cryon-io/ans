@@ -57,7 +57,7 @@ get_json_value() {
 clone_repository() {
     if [ -n "$2" ]; then
         git init -q "$2"
-        if ! git --git-dir="$2/.git" --work-tree="$2" remote set-url origin "$1"; then 
+        if ! git --git-dir="$2/.git" --work-tree="$2" remote set-url origin "$1" > /dev/null; then 
             git --git-dir="$2/.git" --work-tree="$2" remote add origin "$1"
         fi
         git --git-dir="$2/.git" --work-tree="$2" fetch --all

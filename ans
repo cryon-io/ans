@@ -129,6 +129,9 @@ parse_params() {
             -rfp|--restore-file-permissions)
                 restoreFilePermissions=true
                 ;;
+            -rnfp|--restore-node-file-permissions)
+                restoreNodeFilePermissions=true
+                ;;
             -gd|--grant-docker)
                 grantDocker=true
                 ;;
@@ -215,13 +218,16 @@ if [ "$full" = "true" ] || [ "$dependencies" = "true" ]; then
     case "$dist" in 
         ubuntu)
             # shellcheck disable=SC2015
-            DEBIAN_FRONTEND=noninteractive apt-get update && apt-get upgrade -q -y && \
+            apt-get update
+            DEBIAN_FRONTEND=noninteractive apt-get upgrade -q -y && \
             DEBIAN_FRONTEND=noninteractive apt-get install -y -q apt-transport-https ca-certificates curl software-properties-common git unzip jq bc || \
             { error "Failed to install dependencies. Please retry..." && exit 10; }
             curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
             apt-key fingerprint 0EBFCD88
             add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
-            apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y docker-ce
+            apt-get update
+            DEBIAN_FRONTEND=noninteractive apt-get install -y docker-ce  || \
+            { error "Failed to install dependencies. Please retry..." && exit 10; }
         ;;
         fedora)
             dnf -y upgrade
@@ -235,7 +241,8 @@ if [ "$full" = "true" ] || [ "$dependencies" = "true" ]; then
             sleep 15
         ;;
         debian)
-            apt-get update && DEBIAN_FRONTEND=noninteractive apt-get upgrade -q -y
+            apt-get update
+            DEBIAN_FRONTEND=noninteractive apt-get upgrade -q -y
             dist_version="$(sed 's/\/.*//' /etc/debian_version | sed 's/\..*//')"
             if [ "$dist_version" -ge 8 ]; then
                 DEBIAN_FRONTEND=noninteractive apt-get install -y apt-transport-https ca-certificates curl gnupg2 software-properties-common git unzip jq bc || \
@@ -255,7 +262,9 @@ if [ "$full" = "true" ] || [ "$dependencies" = "true" ]; then
                 fixed_list=$(grep -v "deb-src [arch=amd64] https://download.docker.com/linux/debian wheezy stable" /etc/apt/sources.list)
                 echo "$fixed_list" > /etc/apt/sources.list
             fi
-            apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install docker-ce -y
+            apt-get update
+            DEBIAN_FRONTEND=noninteractive apt-get install docker-ce -y || \
+            { error "Failed to install dependencies. Please retry..." && exit 10; }
         ;;
         centos)
             yum upgrade -y
@@ -411,6 +420,8 @@ if ! git --git-dir="$BASEDIR/containers/$NODE/.git" rev-parse --git-dir > /dev/n
     repository_branch_switch "$BASEDIR/containers/$NODE" "$NODE_BRANCH"
 else 
     reset_repository "$BASEDIR/containers/$NODE"
+    restoreNodeFilePermissions=true
+    silentRestoreNodeFilePermissions=true
 fi
 
 # update service
@@ -465,11 +476,18 @@ if [ "$full" = "true" ] || [ "$restoreFilePermissions" = "true" ]; then
     chmod +x "$PATH_TO_ANS"
     chmod +x "$BASEDIR/cli"
     chmod +x "$BASEDIR/is-up"
+fi
 
+if [ "$full" = "true" ] || [ "$restoreFilePermissions" = "true" ] || [ "$restoreNodeFilePermissions" = "true" ]; then
     DEF_FILE="$BASEDIR/containers/$NODE/def.json"
 
     get_json_file_value "$DEF_FILE" "fs-permissions"
-    sh "$BASEDIR/containers/$NODE/$JSON_VALUE"  
+    
+    if [ "$silentRestoreNodeFilePermissions" = "true" ]; then 
+        sh "$BASEDIR/containers/$NODE/$JSON_VALUE" > /dev/null
+    else 
+        sh "$BASEDIR/containers/$NODE/$JSON_VALUE"
+    fi  
 fi
 
 # set env variables
