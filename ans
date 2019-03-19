@@ -482,7 +482,7 @@ if [ "$full" = "true" ] || [ "$restoreFilePermissions" = "true" ] || [ "$restore
     DEF_FILE="$BASEDIR/containers/$NODE/def.json"
 
     get_json_file_value "$DEF_FILE" "fs-permissions"
-    
+
     if [ "$silentRestoreNodeFilePermissions" = "true" ]; then 
         sh "$BASEDIR/containers/$NODE/$JSON_VALUE" > /dev/null
     else 
@@ -613,7 +613,7 @@ if [ "$full" = "true" ] || [ "$build" = "true" ]; then
 fi
 
 # run before-start script
-if [ "$full" = "true" ] || [ "$build" = "true"  ]; then
+if [ "$full" = "true" ] || [ "$start" = "true"  ]; then
     if [ ! "$user" = "true" ]; then
         get_json_file_value "$DEF_FILE" "before-start"
         BEFORE_START_SCRIPT="$BASEDIR/containers/$NODE/$JSON_VALUE"
