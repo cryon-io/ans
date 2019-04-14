@@ -62,7 +62,7 @@ fi
 get_json_file_value "$BASEDIR/state/conf.json" "project_name"
 PROJECT_NAME=${JSON_VALUE:-$NODE}
 
-SERVICES=$(($(docker-compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" ps --services | wc -l) - 1))
+SERVICES=$(docker-compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" ps --services | grep -c -v autoheal)
 if [ "$(docker-compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" ps -q | wc -l)" -ge "$SERVICES" ]; then 
     printf "true"; 
     exit 0;
