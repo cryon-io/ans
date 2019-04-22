@@ -35,14 +35,10 @@ BASEDIR=$(dirname "$PATH_TO_ANS")
 . "$BASEDIR/_ans_methods/util.sh"
 # shellcheck disable=SC1090
 . "$BASEDIR/_ans_methods/dist_info.sh"
-
-require_docker_privileges() {
-    if [ "$(groups | grep "docker" || echo "true")" = "true" ] && [ "$(groups | grep "root" || echo "true")" = "true" ]; then
-        error "This option requires docker privileges. Either run ans as root or grant user docker privileges."
-        info "HINT: sudo ./ans --grant-docker"
-        exit 2
-    fi
-}
+# shellcheck disable=SC1090
+. "$BASEDIR/_ans_methods/json.sh"
+# shellcheck disable=SC1090
+. "$BASEDIR/_ans_methods/privileges.sh"
 
 # update node type
 get_node_type
@@ -55,5 +51,5 @@ fi
 require_docker_privileges
 
 DEF_FILE="$BASEDIR/containers/$NODE/def.json"
-get_json_file_value "$DEF_FILE" "cli"
-sh "$BASEDIR/containers/$NODE/$JSON_VALUE" "$@"
+CLI_PATH=$(get_json_file_value "$DEF_FILE" "cli")
+sh "$BASEDIR/containers/$NODE/$CLI_PATH" "$@"

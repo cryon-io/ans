@@ -22,9 +22,6 @@ PATH_TO_ANS=$(readlink -f "$0")
 BASEDIR=$(dirname "$PATH_TO_ANS")
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
-SUPPORTED_NODES_URL="https://raw.githubusercontent.com/cryon-io/ans/master/supported_nodes.json"
-ANS_VERSION_URL="https://raw.githubusercontent.com/cryon-io/ans/master/version.json"
-
 # shellcheck disable=SC1090
 . "$BASEDIR/_ans_methods/conf.sh"
 # shellcheck disable=SC1090
@@ -39,27 +36,21 @@ ANS_VERSION_URL="https://raw.githubusercontent.com/cryon-io/ans/master/version.j
 . "$BASEDIR/_ans_methods/util.sh"
 # shellcheck disable=SC1090
 . "$BASEDIR/_ans_methods/dist_info.sh"
-
-require_root_privileges() {
-    if [ ! "$(id -u)" = 0 ] ; then
-        error "This option requires root (or sudo) privileges"
-        exit 1
-    fi
-}
-
-require_docker_privileges() {
-    if [ "$(groups | grep "docker" || echo "true")" = "true" ] && [ "$(groups | grep "root" || echo "true")" = "true" ]; then
-        error "This option requires docker privileges. Either run ans as root or grant user docker privileges."
-        info "HINT: sudo ./ans --grant-docker"
-        exit 2
-    fi
-}
+# shellcheck disable=SC1090
+. "$BASEDIR/_ans_methods/privileges.sh"
+# shellcheck disable=SC1090
+. "$BASEDIR/_ans_methods/dependencies.sh"
+# shellcheck disable=SC1090
+. "$BASEDIR/_ans_methods/json.sh"
+# shellcheck disable=SC1090
+. "$BASEDIR/_ans_methods/update.sh"
+# shellcheck disable=SC1090
+. "$BASEDIR/_ans_methods/git.sh"
 
 require_ans_version() {
     NEEDED_VER=$1
-    get_json_file_value "$BASEDIR/version.json" "ans"
-    ANS_VERSION=$JSON_VALUE
-    if [ "$(echo "$NEEDED_VER"' > '"$ANS_VERSION" | bc -l)" = "1" ]; then 
+    ANS_VERSION=$(get_json_file_value "$BASEDIR/version.json" "ans")
+    if [ "$(echo "$NEEDED_VER"' > '"$ANS_VERSION" | bc -l)" = "1" ]; then
         error "Node $NODE requires version $NEEDED_VER of ans. Please update your ans."
         info "HINT: ./ans --update-ans"
         exit 3
@@ -67,401 +58,249 @@ require_ans_version() {
 }
 
 parse_params() {
-    for arg in "$@"; do 
+    for arg in "$@"; do
         case $arg in
-            -h|--help)
-                script_usage
-                exit 0
-                ;;
-            -f|--full)
-                full=true
-                noCache="--no-cache"
-                forceRecreate="--force-recreate"
-                ;;
-            -sd|--setup-dependencies)
-                dependencies=true
-                ;;
-            -n=*|--node=*)
-                NODE=$(echo "$arg" | sed 's/-n=//g')
-                NODE=$(echo "$NODE" | sed 's/--node=//g')
-                ;; 
-            -r|--restart)
-                start=true
-                forceRecreate="--force-recreate"
-                ;;    
-            -b|--build)
-                build=true
-                ;;
-            -s|--start)
-                start=true
-                ;;   
-            --stop)
-                stop=true
-                ;;  
-            -un|--update-node)
-                UPDATE_NODE=true
-                ;;
-            -us|--update-service)
-                UPDATE_SERVICE=true
-                ;;
-            -uc|--update-ans)
-                UPDATE_ANS=true
-                ;;
-            --project-name=*)
-                PROJECT_NAME=$(echo "$arg" | sed 's/--project-name=//g')
-                ;;
-            -au|--auto-update)
-                autoUpdate=true
-                ;;
-            -au=*|--auto-update=*)
-                autoUpdate=true
-                SPECIFIC_USER=$(echo "$arg" | sed 's/-au=//g')
-                SPECIFIC_USER=$(echo "$SPECIFIC_USER" | sed 's/--auto-update=//g')
-                ;;   
-            -aul=*|--auto-update-level=*)
-                autoUpdate=true
-                autoUpdateLevel=$(echo "$arg" | sed 's/-aul=//g')
-                autoUpdateLevel=$(echo "$autoUpdateLevel" | sed 's/--auto-update-level=//g')    
-                ;;                    
-            -dau|--disable-auto-update)
-                disableAutoUpdate=true
-                ;;
-            -rfp|--restore-file-permissions)
-                restoreFilePermissions=true
-                ;;
-            -rnfp|--restore-node-file-permissions)
-                restoreNodeFilePermissions=true
-                ;;
-            -gd|--grant-docker)
-                grantDocker=true
-                ;;
-            -gd=*|--grant-docker=*)
-                grantDocker=true
-                SPECIFIC_USER=$(echo "$arg" | sed 's/-gd=//g')
-                SPECIFIC_USER=$(echo "$SPECIFIC_USER" | sed 's/--grant-docker=//g')
-                ;;
-            -nc|--no-cache)
-                noCache="--no-cache"
-                ;;
-            -i|--node-info)
-                info=true
-                ;;
-            --user=*)
-                user=true
-                grantDocker=true
-                SPECIFIC_USER=$(echo "$arg" | sed 's/--user=//g')
-                ;;
-            --passed)
-                passed=true
-                ;;
-            -se=*|--set-env=*)
-                setEnv=true
-                ;;
-            -sp=*|--set-parameter=*)
-                setParams=true
-                ;;
-            --bind=*)
-                bind=true
-                ;;
-            --ans-branch=*)
-                ANS_BRANCH=$(echo "$arg" | sed 's/--ans-branch=//g')
-                ;;
-            --node-branch=*)
-                NODE_BRANCH=$(echo "$arg" | sed 's/--ans-branch=//g')
-                ;;
-            --prune)
-                PRUNE=true
-                stop=true
+        -h | --help)
+            script_usage
+            exit 0
             ;;
-            --prune-data)
-                PRUNE_DATA=true
-                stop=true
+        -f | --full)
+            full=true
+            noCache="--no-cache"
+            forceRecreate="--force-recreate"
             ;;
-            --docker-prune)
-                dockerPrune=true
-                ;;
-            -?*)
-                echo "Invalid parameter was provided: $arg"
-                exit 2
-                ;;
-            *)
-                warn "Missing hyphen - ignoring '$arg'"
-                ;;
+        -sd | --setup-dependencies)
+            dependencies=true
+            ;;
+        -n=* | --node=*)
+            NODE=$(echo "$arg" | sed 's/-n=//g')
+            NODE=$(echo "$NODE" | sed 's/--node=//g')
+            ;;
+        -r | --restart)
+            start=true
+            forceRecreate="--force-recreate"
+            ;;
+        -b | --build)
+            build=true
+            ;;
+        -s | --start)
+            start=true
+            ;;
+        --stop)
+            stop=true
+            ;;
+        -un | --update-node)
+            UPDATE_NODE=true
+            ;;
+        -us | --update-service)
+            UPDATE_SERVICE=true
+            ;;
+        -uc | --update-ans)
+            UPDATE_ANS=true
+            ;;
+        --project-name=*)
+            PROJECT_NAME=$(echo "$arg" | sed 's/--project-name=//g')
+            ;;
+        -au | --auto-update)
+            autoUpdate=true
+            ;;
+        -au=* | --auto-update=*)
+            autoUpdate=true
+            SPECIFIC_USER=$(echo "$arg" | sed 's/-au=//g')
+            SPECIFIC_USER=$(echo "$SPECIFIC_USER" | sed 's/--auto-update=//g')
+            ;;
+        -aul=* | --auto-update-level=*)
+            autoUpdate=true
+            autoUpdateLevel=$(echo "$arg" | sed 's/-aul=//g')
+            autoUpdateLevel=$(echo "$autoUpdateLevel" | sed 's/--auto-update-level=//g')
+            ;;
+        -dau | --disable-auto-update)
+            disableAutoUpdate=true
+            ;;
+        -rfp | --restore-file-permissions)
+            restoreFilePermissions=true
+            ;;
+        -rnfp | --restore-node-file-permissions)
+            restoreNodeFilePermissions=true
+            ;;
+        -gd | --grant-docker)
+            grantDocker=true
+            ;;
+        -gd=* | --grant-docker=*)
+            grantDocker=true
+            SPECIFIC_USER=$(echo "$arg" | sed 's/-gd=//g')
+            SPECIFIC_USER=$(echo "$SPECIFIC_USER" | sed 's/--grant-docker=//g')
+            ;;
+        -nc | --no-cache)
+            noCache="--no-cache"
+            ;;
+        -i | --node-info)
+            info=true
+            ;;
+        --user=*)
+            user=true
+            grantDocker=true
+            SPECIFIC_USER=$(echo "$arg" | sed 's/--user=//g')
+            ;;
+        --passed)
+            passed=true
+            ;;
+        -se=* | --set-env=*)
+            setEnv=true
+            ;;
+        -sp=* | --set-parameter=*)
+            setParams=true
+            ;;
+        -es=* | --external-source=*)
+            NODE_SOURCE=$(echo "$arg" | sed 's/-es=//g')
+            NODE_SOURCE=$(echo "$NODE_SOURCE" | sed 's/--external-source=//g')
+            ;;
+        --bind=*)
+            bind=true
+            ;;
+        --ans-branch=*)
+            ANS_BRANCH=$(echo "$arg" | sed 's/--ans-branch=//g')
+            ;;
+        --node-branch=*)
+            NODE_BRANCH=$(echo "$arg" | sed 's/--ans-branch=//g')
+            ;;
+        --prune)
+            PRUNE="full"
+            stop=true
+            ;;
+        --prune-data)
+            PRUNE=${PRUNE:-"data"}
+            stop=true
+            ;;
+        --dev)
+            DEV=true
+            ;;
+        --docker-prune)
+            dockerPrune=true
+            ;;
+        -?*)
+            echo "Invalid parameter was provided: $arg"
+            exit 2
+            ;;
+        *)
+            warn "Missing hyphen - ignoring '$arg'"
+            ;;
         esac
     done
 }
 parse_params "$@"
 
-if [ "$dockerPrune" = "true" ]; then
-    docker system prune
-fi
+# prune docker, if requested
+[ "$dockerPrune" = "true" ] && docker system prune
 
 update_current_user
 USER=${SPECIFIC_USER:-"$USER"}
 
 if [ "$user" = "true" ]; then
-    require_root_privileges 
-    
-    if create_user "$USER"; then 
-        success "$USER successfully created.";
-    else 
-        error "Failed to create $USER"
-        exit 4
-    fi
+    create_user "$USER" && success "$USER successfully created." ||
+        { error "Failed to create $USER" && exit 4; }
 fi
 
-if [ "$full" = "true" ] || [ "$dependencies" = "true" ]; then
-    require_root_privileges
+# save node source, if we got new one
+[ -n "$NODE_SOURCE" ] &&
+    set_json_file_value "$BASEDIR/state/conf.json" "node_source" "$NODE_SOURCE"
 
-    dist=$(get_dist_version)
-
-    case "$dist" in 
-        ubuntu)
-            # shellcheck disable=SC2015
-            apt-get update
-            DEBIAN_FRONTEND=noninteractive apt-get upgrade -q -y && \
-            DEBIAN_FRONTEND=noninteractive apt-get install -y -q apt-transport-https ca-certificates curl software-properties-common git unzip jq bc || \
-            { error "Failed to install dependencies. Please retry..." && exit 10; }
-            curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
-            apt-key fingerprint 0EBFCD88
-            add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
-            apt-get update
-            DEBIAN_FRONTEND=noninteractive apt-get install -y docker-ce  || \
-            { error "Failed to install dependencies. Please retry..." && exit 10; }
-        ;;
-        fedora)
-            dnf -y upgrade
-            dnf -y install dnf-plugins-core
-            dnf config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo
-            # shellcheck disable=SC2015
-            dnf -y install curl git unzip jq bc && dnf -y install docker-ce || \
-            { error "Failed to install dependencies. Please retry..." && exit 10; }
-            systemctl enable docker
-            systemctl start docker
-            sleep 15
-        ;;
-        debian)
-            apt-get update
-            DEBIAN_FRONTEND=noninteractive apt-get upgrade -q -y
-            dist_version="$(sed 's/\/.*//' /etc/debian_version | sed 's/\..*//')"
-            if [ "$dist_version" -ge 8 ]; then
-                DEBIAN_FRONTEND=noninteractive apt-get install -y apt-transport-https ca-certificates curl gnupg2 software-properties-common git unzip jq bc || \
-                { error "Failed to install dependencies. Please retry..." && exit 10; }
-
-                curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -
-                apt-key fingerprint 0EBFCD88
-                add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/debian $(lsb_release -cs) stable"
-            else 
-                DEBIAN_FRONTEND=noninteractive apt-get install apt-transport-https ca-certificates curl python-software-properties git unzip jq bc || \
-                { error "Failed to install dependencies. Please retry..." && exit 10; }
-
-                curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -
-                apt-key fingerprint 0EBFCD88
-                add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/debian $(lsb_release -cs) stable"
-                cp /etc/apt/sources.list /etc/apt/sources.list.backup
-                fixed_list=$(grep -v "deb-src [arch=amd64] https://download.docker.com/linux/debian wheezy stable" /etc/apt/sources.list)
-                echo "$fixed_list" > /etc/apt/sources.list
-            fi
-            apt-get update
-            DEBIAN_FRONTEND=noninteractive apt-get install docker-ce -y || \
-            { error "Failed to install dependencies. Please retry..." && exit 10; }
-        ;;
-        centos)
-            yum upgrade -y
-            yum install -y yum-utils device-mapper-persistent-data epel-release
-            yum install -y lvm2 git unzip jq bc
-            yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-            yum install -y docker-ce
-            systemctl enable docker
-            systemctl start docker
-            sleep 15
-        ;;
-        *)
-            error "Unsupported operating system '$dist'"
-            exit 10
-        ;;
-    esac
-
-    docker run hello-world || \
-    { error "Failed to install or run docker. Please retry..." && exit 10; }
-
-    get_latest_github_release "docker/compose"
-    curl -L "https://github.com/docker/compose/releases/download/$RESULT/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-    chmod +x /usr/local/bin/docker-compose
-    docker-compose --version || \
-    { error "Failed to install or run docker-compose. Please retry..." && exit 10; }
-fi
+# install dependencies
+[ "$full" = "true" ] || [ "$dependencies" = "true" ] &&
+    install_dependencies
 
 # connect ANS repository in case it was downloaded as zip
-if ! git --git-dir="$BASEDIR/.git" --work-tree="$BASEDIR" remote get-url origin >/dev/null 2>&1; then 
-    git --git-dir="$BASEDIR/.git" --work-tree="$BASEDIR" init
-    git --git-dir="$BASEDIR/.git" --work-tree="$BASEDIR" remote add origin https://github.com/cryon-io/ans.git
-    git --git-dir="$BASEDIR/.git" --work-tree="$BASEDIR" fetch --all
-fi
+git --git-dir="$BASEDIR/.git" --work-tree="$BASEDIR" remote get-url origin >/dev/null 2>&1 ||
+    init_repository "$BASEDIR" "https://github.com/cryon-io/ans.git"
 
+### Project
+OLD_PROJECT_NAME=$(get_json_file_value "$BASEDIR/state/conf.json" "project_name")
 # update node type
-get_node_type
-RESULT=$?
-if [ "$RESULT" = "2" ]; then 
-    error "NODE type not defined."
-    info "HINT: ./ans --node=[node]"
-    info "HINT2: Check supported_nodes.json for list of supported nodes."
-    exit 6
-elif [ "$RESULT" = "1" ]; then
-    info "Stopping old node: $OLD_NODE"
-    require_docker_privileges
-    get_json_file_value "$BASEDIR/state/conf.json" "project_name"
-    OLD_PROJECT_NAME=${JSON_VALUE:-$OLD_NODE}
-    i=0
-    while sh "$BASEDIR/is-up" >/dev/null; do
-        stop_service "$BASEDIR/containers/$OLD_NODE/docker-compose.yml" "$OLD_PROJECT_NAME"
-        i="$((i+1))"
-        if [ "$i" -gt "4" ]; then
-            error "Node stop retry limit reached. Failed to stop node."
-            info "Please stop node manually and retry..."
-            exit 15
-        fi
-    done
-    NEW_NODE=true
+if ! get_node_type; then
+    OLD_PROJECT_NAME=${OLD_PROJECT_NAME:-$OLD_NODE}
+    stop_node "$BASEDIR/containers/$OLD_NODE/docker-compose.yml" "$BASEDIR/is-up" "$OLD_PROJECT_NAME" "$OLD_NODE"
 fi
 
-if [ -z "$PROJECT_NAME" ]; then 
-    get_json_file_value "$BASEDIR/state/conf.json" "project_name"
-    PROJECT_NAME=${JSON_VALUE:-$NODE}
-else 
+[ -z "$DEV" ] && DEV=$(get_json_file_value "$BASEDIR/state/conf.json" "DEV")
+[ -n "$DEV" ] && set_json_file_value "$BASEDIR/state/conf.json" "DEV" "$DEV"
+
+# get project_name or save if we got new one
+[ -z "$PROJECT_NAME" ] && PROJECT_NAME=${OLD_PROJECT_NAME:-$NODE} ||
     set_json_file_value "$BASEDIR/state/conf.json" "project_name" "$PROJECT_NAME"
-fi 
 
-if [ -n "$NODE" ] && [ "$stop" = "true" ]; then
-    require_docker_privileges
-    i=0
-    while sh "$BASEDIR/is-up" >/dev/null; do
-        stop_service "$BASEDIR/containers/$NODE/docker-compose.yml" "$PROJECT_NAME"
-        i="$((i+1))"
-        if [ "$i" -gt "5" ]; then
-            error "Node stop retry limit reached. Failed to stop node."
-            exit 15
-        fi
-    done
-fi
+# stop running node
+[ -n "$NODE" ] && [ "$stop" = "true" ] &&
+    stop_node "$BASEDIR/containers/$NODE/docker-compose.yml" "$BASEDIR/is-up" "$PROJECT_NAME" "$NODE"
 
-if [ "$PRUNE" = "true" ]; then
+# prune ans environment
+case $PRUNE in
+"data")
     require_root_privileges
-    rm -r "$BASEDIR/containers/"* || \
-    { error "Failed prune containers. Please retry..." && exit 16; } 
-fi
-
-if [ "$PRUNE_DATA" = "true" ]; then
+    rm -r "$BASEDIR/containers/$NODE/data/"* ||
+        { error "Failed prune node data. Please retry..." && exit 17; }
+    ;;
+"full")
     require_root_privileges
-    rm -r "$BASEDIR/containers/$NODE/data/"* || \
-    { error "Failed prune node data. Please retry..." && exit 17; } 
-fi
+    rm -r "$BASEDIR/containers/"* ||
+        { error "Failed prune containers. Please retry..." && exit 16; }
+    ;;
+esac
 
-# check, if node type supported
-if [ "$NEW_NODE" = "true" ]; then 
-    get_json_file_value "$BASEDIR/supported_nodes.json" "$NODE"
-    if [ -z "$JSON_VALUE" ]; then NO_LOCAL_SUPPORT=true; fi
-
-    # check for remote support
-    get_json_value "$(curl -fsL \"$SUPPORTED_NODES_URL\")" "$NODE"
-    NO_REMOTE_SUPPORT=${JSON_VALUE:-true}
-    if [ -z "$JSON_VALUE" ]; then NO_REMOTE_SUPPORT=true; fi
- 
-    if  [ "$NO_LOCAL_SUPPORT" = "true" ] && [ "$NO_REMOTE_SUPPORT" = "true" ]; then 
-        error "Not supported node type: $NODE"
-        exit 7
-    elif [ "$NO_LOCAL_SUPPORT" = "true" ]; then
-        curl -fL "$SUPPORTED_NODES_URL" -o "$BASEDIR/supported_nodes.json"
-    fi
-fi
+# get node source and check, if node type supported
+NODE_SOURCE=$(get_node_type_source "$NODE")
+[ -z "$NODE_SOURCE" ] &&
+    { error "Not supported node type: $NODE" && exit 7; }
 
 # load ans branch
-if [ -n "$ANS_BRANCH" ]; then 
+if [ -n "$ANS_BRANCH" ]; then
     require_root_privileges
     repository_branch_switch "$BASEDIR" "$ANS_BRANCH"
     set_json_file_value "$BASEDIR/state/conf.json" "ans_branch" "$ANS_BRANCH"
     restoreFilePermissions=true
 elif [ -z "$ANS_BRANCH" ] && [ -f "$BASEDIR/state/conf.json" ]; then
-    get_json_file_value "$BASEDIR/state/conf.json" "ans_branch"
+    ANS_BRANCH=$(get_json_file_value "$BASEDIR/state/conf.json" "ans_branch")
     ANS_BRANCH=${JSON_VALUE:-master}
 fi
 
 # load node branch
-if [ -n "$NODE_BRANCH" ]; then 
+if [ -n "$NODE_BRANCH" ]; then
     require_root_privileges
     set_json_file_value "$BASEDIR/state/conf.json" "node_branch" "$NODE_BRANCH"
     repository_branch_switch "$BASEDIR/containers/$NODE" "$ANS_BRANCH"
     restoreFilePermissions=true
 elif [ -z "$ANS_BRANCH" ] && [ -f "$BASEDIR/state/conf.json" ]; then
-    get_json_file_value "$BASEDIR/state/conf.json" "node_branch"
-    NODE_BRANCH=${JSON_VALUE:-master}
+    NODE_BRANCH=$(get_json_file_value "$BASEDIR/state/conf.json" "node_branch")
+    NODE_BRANCH=${NODE_BRANCH:-master}
 fi
 
 # update ans
-if [ "$full" = "true" ] || [ "$UPDATE_ANS" = "true" ]; then
-    require_root_privileges
-    LATEST_VER=$(curl -sL "$ANS_VERSION_URL" | jq '.ans' -r 2>/dev/null)
-    get_json_file_value "$BASEDIR/version.json" "ans"
-    ANS_VERSION=$JSON_VALUE
-    if [ "$(echo "$LATEST_VER"' > '"$ANS_VERSION" | bc -l)" = 1 ]; then 
-        info "Updating ans"
-        update_repository "$BASEDIR" "$ANS_BRANCH"
-        chmod +x "$PATH_TO_ANS"
-        chmod +x "$BASEDIR/cli"
-        restoreFilePermissions=true
-    fi
-fi
+[ "$full" = "true" ] || [ "$UPDATE_ANS" = "true" ] && update_ans
 
 # Clone service repository if not yet cloned
-if ! git --git-dir="$BASEDIR/containers/$NODE/.git" rev-parse --git-dir > /dev/null 2>&1; then
-    REPOSITORY_URL=$(jq ".$NODE" "$BASEDIR/supported_nodes.json" -r 2>/dev/null)
-    info "Cloning repository: $REPOSITORY_URL"
-    clone_repository "$REPOSITORY_URL" "$BASEDIR/containers/$NODE"
+if ! git --git-dir="$BASEDIR/containers/$NODE/.git" rev-parse --git-dir >/dev/null 2>&1; then
+    info "Cloning repository: $NODE_SOURCE"
+    clone_repository "$NODE_SOURCE" "$BASEDIR/containers/$NODE"
     repository_branch_switch "$BASEDIR/containers/$NODE" "$NODE_BRANCH"
-else 
-    reset_repository "$BASEDIR/containers/$NODE"
+else
+    # always reset repository, if not cloned ... ensures deterministic (except if dev is set... for dev purpose only)
+    [ ! "$DEV" = "true" ] && reset_repository "$BASEDIR/containers/$NODE"
     restoreNodeFilePermissions=true
     silentRestoreNodeFilePermissions=true
 fi
 
 # update service
-if [ "$full" = "true" ] || [ "$UPDATE_SERVICE" = "true" ]; then
-    REPOSITORY_URL=$(jq ".$NODE" "$BASEDIR/supported_nodes.json" -r 2>/dev/null)
-    repository_link_to_raw_link "$REPOSITORY_URL" "def.json"
-    NODE_DEF=$(curl -fsL "$RESULT")
-    if [ -z "$NODE_DEF" ]; then
-        error "Failed to obtain node service definition. Please retry..."
-        exit 11
-    fi
-    get_json_value "$NODE_DEF" "required-ans-version"
-
-    info "Checking updates for service definition for node $NODE"
-    require_ans_version "$JSON_VALUE"
-
-    get_json_value "$NODE_DEF" "version"
-    LATEST_VER=$JSON_VALUE
-    
-    get_json_file_value "$BASEDIR/containers/$NODE/def.json" "version"
-    SERVICE_VER=$JSON_VALUE
-    if [ "$(echo "$LATEST_VER"' > '"$SERVICE_VER" | bc -l)" = "1" ]; then 
-        info "Updating service definition"
-        update_repository "$BASEDIR/containers/$NODE"
-        repository_branch_switch "$BASEDIR/containers/$NODE" "$NODE_BRANCH"
-        restoreFilePermissions=true
-        build=true
-        start=true
-        noCache="--no-cache"
-    fi
-fi
+[ "$full" = "true" ] || [ "$UPDATE_SERVICE" = "true" ] && update_service
 
 # ensure that we use proper version of ans for node management
-get_json_file_value "$BASEDIR/containers/$NODE/def.json" "required-ans-version"
-NEEDED_VER=$JSON_VALUE
+DEF_FILE="$BASEDIR/containers/$NODE/def.json"
+[ ! -f "$DEF_FILE" ] &&
+    { error "Cannot find $NODE definition file: $DEF_FILE" && exit 19; }
+
+NEEDED_VER=$(get_json_file_value "$BASEDIR/containers/$NODE/def.json" "required-ans-version")
+NEEDED_VER=${NEEDED_VER:-0}
 require_ans_version "$NEEDED_VER"
 
-if [ ! "$passed" = "true" ]; then
-    save_node_type
-fi
+[ ! "$passed" = "true" ] && save_node_type
 
 # set fs permissions
 if [ "$full" = "true" ] || [ "$restoreFilePermissions" = "true" ]; then
@@ -473,41 +312,38 @@ if [ "$full" = "true" ] || [ "$restoreFilePermissions" = "true" ]; then
     chgrp -R "ans" "$BASEDIR"
     chmod -R g+rw "$BASEDIR"
     chmod g+x "$PATH_TO_ANS"
-    chmod +x "$PATH_TO_ANS"
-    chmod +x "$BASEDIR/cli"
-    chmod +x "$BASEDIR/is-up"
+    chmod +x "$PATH_TO_ANS" "$BASEDIR/cli" "$BASEDIR/is-up"
 fi
 
 if [ "$full" = "true" ] || [ "$restoreFilePermissions" = "true" ] || [ "$restoreNodeFilePermissions" = "true" ]; then
-    DEF_FILE="$BASEDIR/containers/$NODE/def.json"
 
-    get_json_file_value "$DEF_FILE" "fs-permissions"
-
-    if [ "$silentRestoreNodeFilePermissions" = "true" ]; then 
-        sh "$BASEDIR/containers/$NODE/$JSON_VALUE" > /dev/null
-    else 
-        sh "$BASEDIR/containers/$NODE/$JSON_VALUE"
-    fi  
+    script_sub_path=$(get_json_file_value "$DEF_FILE" "fs-permissions")
+    if [ -f "$BASEDIR/containers/$NODE/$script_sub_path" ]; then
+        if [ "$silentRestoreNodeFilePermissions" = "true" ]; then
+            sh "$BASEDIR/containers/$NODE/$script_sub_path" >/dev/null
+        else
+            sh "$BASEDIR/containers/$NODE/$script_sub_path"
+        fi
+    fi
 fi
 
 # set env variables
-DEF_FILE="$BASEDIR/containers/$NODE/def.json"
 
-get_json_file_value "$DEF_FILE" "set-env"
-ENV_SETTER="$BASEDIR/containers/$NODE/$JSON_VALUE"
-if [ "$setEnv" = "true" ]; then  
+script_sub_path=$(get_json_file_value "$DEF_FILE" "set-env")
+ENV_SETTER="$BASEDIR/containers/$NODE/$script_sub_path"
+if [ "$setEnv" = "true" ]; then
     rm -f "$BASEDIR/state/environment"
-    for arg in "$@"; do 
+    for arg in "$@"; do
         case $arg in
-            -se=*|--set-env=*)
-                ENV=$(echo "$arg" | sed 's/-se=//')
-                ENV=$(echo "$ENV" | sed 's/--set-env=//')
-                info "Configuring env variable '$ENV'"
-                if [ -f "$ENV_SETTER" ]; then
-                    sh "$ENV_SETTER" "$ENV" 
-                fi
-                echo "$ENV" >> "$BASEDIR/state/environment"
-                ;;
+        -se=* | --set-env=*)
+            ENV=$(echo "$arg" | sed 's/-se=//')
+            ENV=$(echo "$ENV" | sed 's/--set-env=//')
+            info "Configuring env variable '$ENV'"
+            if [ -f "$ENV_SETTER" ]; then
+                sh "$ENV_SETTER" "$ENV"
+            fi
+            echo "$ENV" >>"$BASEDIR/state/environment"
+            ;;
         esac
     done
 elif [ -f "$BASEDIR/state/environment" ] && [ ! "$passed" = "true" ]; then
@@ -515,34 +351,34 @@ elif [ -f "$BASEDIR/state/environment" ] && [ ! "$passed" = "true" ]; then
         if [ -n "$line" ]; then
             # info "Reapplying env variable '$line'"
             if [ -f "$ENV_SETTER" ]; then
-                sh "$ENV_SETTER" "$line" 
+                sh "$ENV_SETTER" "$line"
             fi
         fi
-    done < "$BASEDIR/state/environment"
+    done <"$BASEDIR/state/environment"
 fi
 
-get_json_file_value "$DEF_FILE" "set-param"
-PARAM_SETTER="$BASEDIR/containers/$NODE/$JSON_VALUE"
+script_sub_path=$(get_json_file_value "$DEF_FILE" "set-param")
+PARAM_SETTER="$BASEDIR/containers/$NODE/$script_sub_path"
 
 # set project name
-if [ -n "$PROJECT_NAME" ] && [ -f "$PARAM_SETTER" ]; then 
-    sh "$PARAM_SETTER" "PROJECT=$PROJECT_NAME" 
+if [ -n "$PROJECT_NAME" ] && [ -f "$PARAM_SETTER" ]; then
+    sh "$PARAM_SETTER" "PROJECT=$PROJECT_NAME"
 fi
 
 # set params
-if [ "$setParams" = "true" ]; then  
+if [ "$setParams" = "true" ]; then
     rm -f "$BASEDIR/state/parameters"
-    for arg in "$@"; do 
+    for arg in "$@"; do
         case $arg in
-            -sp=*|--set-parameter=*)
-                PARAM=$(echo "$arg" | sed 's/-sp=//')
-                PARAM=$(echo "$PARAM" | sed 's/--set-parameter=//')
-                info "Setting parameter '$PARAM'"
-                if [ -f "$PARAM_SETTER" ]; then
-                    sh "$PARAM_SETTER" "$PARAM" 
-                fi
-                echo "$PARAM" >> "$BASEDIR/state/parameters"
-                ;;
+        -sp=* | --set-parameter=*)
+            PARAM=$(echo "$arg" | sed 's/-sp=//')
+            PARAM=$(echo "$PARAM" | sed 's/--set-parameter=//')
+            info "Setting parameter '$PARAM'"
+            if [ -f "$PARAM_SETTER" ]; then
+                sh "$PARAM_SETTER" "$PARAM"
+            fi
+            echo "$PARAM" >>"$BASEDIR/state/parameters"
+            ;;
         esac
     done
 elif [ -f "$BASEDIR/state/parameters" ] && [ ! "$passed" = "true" ]; then
@@ -550,10 +386,10 @@ elif [ -f "$BASEDIR/state/parameters" ] && [ ! "$passed" = "true" ]; then
         if [ -n "$line" ]; then
             # info "Reapplying parameter '$line'"
             if [ -f "$PARAM_SETTER" ]; then
-                sh "$PARAM_SETTER" "$line" 
+                sh "$PARAM_SETTER" "$line"
             fi
         fi
-    done < "$BASEDIR/state/parameters"
+    done <"$BASEDIR/state/parameters"
 fi
 
 # set binds
@@ -561,14 +397,14 @@ if [ "$bind" = "true" ]; then
     rm -f "$BASEDIR/state/binds"
     for arg in "$@"; do
         case $arg in
-            --bind=*)
-                BIND=$(echo "$arg" | sed 's/--bind=//g')
-                info "Setting binding '$BIND'"
-                BIND_PORT=$(echo "$BIND" | sed 's/.*://g')
-                NEW_COMPOSE=$(sed "s/- \".*:$BIND_PORT\"/- \"$BIND\"/g" "$BASEDIR/containers/$NODE/docker-compose.yml")
-                echo "$NEW_COMPOSE" > "$BASEDIR/containers/$NODE/docker-compose.yml"
-                echo "$BIND" >> "$BASEDIR/state/binds"
-                ;;
+        --bind=*)
+            BIND=$(echo "$arg" | sed 's/--bind=//g')
+            info "Setting binding '$BIND'"
+            BIND_PORT=$(echo "$BIND" | sed 's/.*://g')
+            NEW_COMPOSE=$(sed "s/- \".*:$BIND_PORT\"/- \"$BIND\"/g" "$BASEDIR/containers/$NODE/docker-compose.yml")
+            echo "$NEW_COMPOSE" >"$BASEDIR/containers/$NODE/docker-compose.yml"
+            echo "$BIND" >>"$BASEDIR/state/binds"
+            ;;
         esac
     done
 elif [ -f "$BASEDIR/state/binds" ] && [ ! "$passed" = "true" ]; then
@@ -577,9 +413,9 @@ elif [ -f "$BASEDIR/state/binds" ] && [ ! "$passed" = "true" ]; then
             # info "Reapplying binding '$line'"
             BIND_PORT=$(echo "$line" | sed 's/.*://g')
             NEW_COMPOSE=$(sed "s/- \".*:$BIND_PORT\"/- \"$line\"/g" "$BASEDIR/containers/$NODE/docker-compose.yml")
-            echo "$NEW_COMPOSE" > "$BASEDIR/containers/$NODE/docker-compose.yml"
+            echo "$NEW_COMPOSE" >"$BASEDIR/containers/$NODE/docker-compose.yml"
         fi
-    done < "$BASEDIR/state/binds"
+    done <"$BASEDIR/state/binds"
 fi
 
 # grant docker permissions
@@ -589,10 +425,10 @@ if [ "$full" = "true" ] || [ "$grantDocker" = "true" ]; then
         usermod -a -G docker "$USER"
         if [ "$(groups "$USER" | grep "docker" || echo "true")" = "true" ] && [ "$(groups "$USER" | grep "root" || echo "true")" = "true" ]; then
             error "Failed to set docker privileges for user $USER"
-        else 
-            success "Docker privileges granted to $USER"  
+        else
+            success "Docker privileges granted to $USER"
         fi
-    else 
+    else
         success "Docker privileges are already granted to $USER"
     fi
 fi
@@ -604,30 +440,26 @@ if [ "$full" = "true" ] || [ "$build" = "true" ]; then
         runuser -l "$USER" -c "sh $PATH_TO_ANS -b --passed"
     else
         require_docker_privileges
-        if [ ! -f "$serviceDef" ]; then
-            error "Cannot find $NODE definition file: $serviceDef"
-            exit 8;
-        fi
+        [ ! -f "$serviceDef" ] &&
+            { error "Cannot find $NODE compose file: $serviceDef" && exit 8; }
+
         build_service "$BASEDIR/containers/$NODE/docker-compose.yml" "$noCache" "$PROJECT_NAME"
     fi
 fi
 
 # run before-start script
-if [ "$full" = "true" ] || [ "$start" = "true"  ]; then
+if [ "$full" = "true" ] || [ "$start" = "true" ]; then
     if [ ! "$user" = "true" ]; then
-        get_json_file_value "$DEF_FILE" "before-start"
-        BEFORE_START_SCRIPT="$BASEDIR/containers/$NODE/$JSON_VALUE"
+        script_sub_path=$(get_json_file_value "$DEF_FILE" "before-start")
+        BEFORE_START_SCRIPT="$BASEDIR/containers/$NODE/$script_sub_path"
         if [ -f "$BEFORE_START_SCRIPT" ]; then
             info "Running before-start init script"
-            if sh "$BEFORE_START_SCRIPT"; then 
-                info "before-start initialization successful"
-            else 
-                error "Failed to finish before-start initialization"
-                exit 12
-            fi
+
+            sh "$BEFORE_START_SCRIPT" && info "before-start initialization successful" ||
+                { error "Failed to finish before-start initialization" && exit 12; }
         fi
     fi
-fi 
+fi
 
 # start service
 if [ "$full" = "true" ] || [ "$start" = "true" ]; then
@@ -635,126 +467,88 @@ if [ "$full" = "true" ] || [ "$start" = "true" ]; then
         runuser -l "$USER" -c "sh $PATH_TO_ANS -s --passed"
     else
         require_docker_privileges
-        if [ ! -f "$serviceDef" ]; then
-            error "Cannot find $NODE definition file: $serviceDef"
-            exit 8;
-        fi
+        [ ! -f "$serviceDef" ] &&
+            { error "Cannot find $NODE compose file: $serviceDef" && exit 8; }
+
         start_service "$serviceDef" "$forceRecreate" "$PROJECT_NAME"
         echo "waiting (15s) for MN to start..."
-        sleep 15  
-        get_json_file_value "$DEF_FILE" "is-up"
-        if ! sh "$BASEDIR/containers/$NODE/$JSON_VALUE"; then
-            error "Failed to start node. Exiting..."
-            exit 5
-        fi
+        sleep 15
+        script_sub_path=$(get_json_file_value "$DEF_FILE" "is-up")
+
+        sh "$BASEDIR/containers/$NODE/$script_sub_path" ||
+            { error "Failed to start node. Exiting..." && exit 5; }
     fi
 fi
 
 # run on-start script
 if [ "$full" = "true" ] || [ "$start" = "true" ]; then
     if [ ! "$user" = "true" ]; then
-        get_json_file_value "$DEF_FILE" "on-start"
-        ON_START_SCRIPT="$BASEDIR/containers/$NODE/$JSON_VALUE"
-        if [ -f "$ON_START_SCRIPT" ]; then
-            info "Running on-start init script"
+        script_sub_path=$(get_json_file_value "$DEF_FILE" "on-start")
+        ON_START_SCRIPT="$BASEDIR/containers/$NODE/$script_sub_path"
+
+        [ -f "$ON_START_SCRIPT" ] && info "Running on-start init script" &&
             sh "$ON_START_SCRIPT"
-        fi
     fi
-fi 
+fi
 
 # update node binaries through docker build
-if [ "$UPDATE_NODE" = "true" ]; then 
-    info "Updating node..."
-    require_docker_privileges
-    DEF_FILE="$BASEDIR/containers/$NODE/def.json"
-    get_json_file_value "$DEF_FILE" "update-node"
-    update_file="$BASEDIR/containers/$NODE/$JSON_VALUE"
-    if [ ! -f "$update_file" ]; then
-        error "Cannot find $NODE update-node file: $update_file"
-        warn "Update node core skipped"
-    fi
-    sh "$BASEDIR/containers/$NODE/$JSON_VALUE"
-    case "$?" in
-    "0")
-        info "Node was updated or running on latest version."
-        ;;
-    "1")
-        error "Node is not running, cannot update."
-        ;;
-    "2")
-        error "Failed to update node"
-        ;;
-    "3")
-        error "Failed to get node.info"
-        ;;
-    esac
+if [ "$UPDATE_NODE" = "true" ]; then
+    update_node
 fi
 
 # configure auto update
 if [ "$full" = "true" ] || [ "$autoUpdate" = "true" ]; then
     if [ ! "$disableAutoUpdate" = "true" ]; then
         require_root_privileges
-        crontab -u "root" -l | grep -v "sh \"$PATH_TO_ANS\" --update-node" > "temp.cron"
-               
+        crontab -u "root" -l | grep -v "sh \"$PATH_TO_ANS\" --update-node" >"temp.cron"
+
         update_option="--update-node --update-service"
         if [ -n "$autoUpdateLevel" ]; then
             case "$autoUpdateLevel" in
-            "0")
+            "0" | "node")
                 update_option="--update-node"
                 ;;
-            "node")
-                update_option="--update-node"
-                ;;
-            "1")
+            "1" | "service")
                 update_option="--update-node --update-service"
                 ;;
-            "service")
-                update_option="--update-node --update-service"
-                ;;
-            "2") 
+            "2" | "all")
                 update_option="--update-node --update-service --update-ans"
                 ;;
-            "all")
-                update_option="--update-node --update-service --update-ans"
-                ;;
-            *) 
+            *)
                 warn "Unknown auto update level: $autoUpdateLevel"
                 warn "Using default auto update level (0 - node)."
+                ;;
             esac
         fi
-        echo "59 23 * * * sh \"$PATH_TO_ANS\" $update_option > /var/log/ans-update.log" >> "temp.cron"
+        echo "59 23 * * * sh \"$PATH_TO_ANS\" $update_option > /var/log/ans-update.log" >>"temp.cron"
         crontab -u "root" "temp.cron"
         rm "temp.cron"
         # shellcheck disable=SC2015
-        crontab -u "root" -l | grep "\"$PATH_TO_ANS\" $update_option" > /dev/null && success "Auto update configured." || error "Failed to configure auto update." 
+        crontab -u "root" -l | grep "\"$PATH_TO_ANS\" $update_option" >/dev/null && success "Auto update configured." || error "Failed to configure auto update."
     fi
 fi
 
 # disable auto update
 if [ "$disableAutoUpdate" = "true" ]; then
-    crontab -u "root" -l | grep -v "$PATH_TO_ANS --update-node" | crontab -u "root" -
+    require_root_privileges
+    crontab -u "root" -l | grep -v "$PATH_TO_ANS" | crontab -u "root" -
     # shellcheck disable=SC2015
-    crontab -u "root" -l | grep "$PATH_TO_ANS --update-node" && error "Failed to disable auto update." || success "Auto updated disabled" 
+    crontab -u "root" -l | grep "$PATH_TO_ANS" && error "Failed to disable auto update." || success "Auto updated disabled"
 fi
 
 # display information about node
 if [ "$full" = "true" ] || [ "$info" = "true" ]; then
     info "NODE DETAILS:"
-    DEF_FILE="$BASEDIR/containers/$NODE/def.json"
-    get_json_file_value "$DEF_FILE" "node-info"
-    INFO_FROM_NODE=$(sh "$BASEDIR/containers/$NODE/$JSON_VALUE")
+    script_sub_path=$(get_json_file_value "$DEF_FILE" "node-info")
+    INFO_FROM_NODE=$(sh "$BASEDIR/containers/$NODE/$script_sub_path")
+    TEMPLATE_VERSION=$(get_json_file_value "$DEF_FILE" "version")
+    ANS_VERSION=$(get_json_file_value "$BASEDIR/version.json" "ans")
 
-    get_json_file_value "$DEF_FILE" "version"
-    TEMPLATE_VERSION="$JSON_VALUE"
-    
-    get_json_file_value "$BASEDIR/version.json" "ans"
     printf "%s
 TEMPLATE VERSION: %s
-ANS VERSION: %s\n" "$INFO_FROM_NODE" "$TEMPLATE_VERSION" "$JSON_VALUE" > $BASEDIR/node.info
+ANS VERSION: %s\n" "$INFO_FROM_NODE" "$TEMPLATE_VERSION" "$ANS_VERSION" >$BASEDIR/node.info
     printf "%s
 TEMPLATE VERSION: %s
-ANS VERSION: %s\n" "$INFO_FROM_NODE" "$TEMPLATE_VERSION" "$JSON_VALUE"
-    info "\
-    ** this node info was also saved into $BASEDIR/node.info ** \
-    "
+ANS VERSION: %s\n" "$INFO_FROM_NODE" "$TEMPLATE_VERSION" "$ANS_VERSION"
+    info "** this node info was also saved into $BASEDIR/node.info **"
 fi

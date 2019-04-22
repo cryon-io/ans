@@ -18,22 +18,25 @@
 #
 #  Contact: cryi@tutanota.com
 
-success() {
-    time=$(date +%H:%M:%S)
-    printf "\033[0;32m%s SUCCESS: %s \033[0m\n" "$time" "$1"
+
+PATH_TO_SCRIPT=$(readlink -f "$0")
+METHODS_DIR=$(dirname "$PATH_TO_SCRIPT")
+# shellcheck disable=SC1090
+[ -f "$METHODS_DIR/prints.sh" ] && . "$METHODS_DIR/prints.sh" 
+# shellcheck disable=SC1090
+[ -f "$METHODS_DIR/_ans_methods/prints.sh"  ] && . "$METHODS_DIR/_ans_methods/prints.sh" 
+
+require_root_privileges() {
+    if [ ! "$(id -u)" = 0 ] ; then
+        error "This option requires root (or sudo) privileges"
+        exit 1
+    fi
 }
 
-info() {
-    time=$(date +%H:%M:%S)
-    printf "\033[0;36m%s INFO: %s \033[0m\n" "$time" "$1"
-}
-
-warn() {
-    time=$(date +%H:%M:%S)
-    printf "\033[0;33m%s WARN: %s \033[0m\n" "$time" "$1"
-}
-
-error() {
-    time=$(date +%H:%M:%S)
-    printf "\033[0;31m%s ERROR: %s \033[0m\n" "$time" "$1"
+require_docker_privileges() {
+    if [ "$(groups | grep "docker" || echo "true")" = "true" ] && [ "$(groups | grep "root" || echo "true")" = "true" ]; then
+        error "This option requires docker privileges. Either run ans as root or grant user docker privileges."
+        info "HINT: sudo ./ans --grant-docker"
+        exit 2
+    fi
 }

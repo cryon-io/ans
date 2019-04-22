@@ -18,47 +18,67 @@
 #
 #  Contact: cryi@tutanota.com
 
+#######################################################################################
+############                THIS MODULE IS NOT STANDALONE                  ############  
+#######################################################################################
+
 PATH_TO_SCRIPT=$(readlink -f "$0")
 METHODS_DIR=$(dirname "$PATH_TO_SCRIPT")
 
-if [ -f "$METHODS_DIR/util.sh" ]; then 
-    # shellcheck disable=SC1090
-    . "$METHODS_DIR/util.sh" 
-fi
+SUPPORTED_NODES_URL="https://raw.githubusercontent.com/cryon-io/ans/master/supported_nodes.json"
 
-if [ -f "$METHODS_DIR/_ans_methods/util.sh"  ]; then 
-    # shellcheck disable=SC1090
-    . "$METHODS_DIR/_ans_methods/util.sh" 
-fi
+# shellcheck disable=SC1090
+[ -f "$METHODS_DIR/util.sh" ] && . "$METHODS_DIR/util.sh" 
+# shellcheck disable=SC1090
+[ -f "$METHODS_DIR/_ans_methods/util.sh"  ] && . "$METHODS_DIR/_ans_methods/util.sh" 
+
+# shellcheck disable=SC1090
+[ -f "$METHODS_DIR/prints.sh" ] && . "$METHODS_DIR/prints.sh" 
+# shellcheck disable=SC1090
+[ -f "$METHODS_DIR/_ans_methods/prints.sh"  ] && . "$METHODS_DIR/_ans_methods/prints.sh" 
+
+# shellcheck disable=SC1090
+[ -f "$METHODS_DIR/json.sh" ] && . "$METHODS_DIR/json.sh" 
+# shellcheck disable=SC1090
+[ -f "$METHODS_DIR/_ans_methods/json.sh"  ] && . "$METHODS_DIR/_ans_methods/json.sh" 
+
+print_node_not_defined() {
+    error "NODE type not defined."
+    info "HINT: ./ans --node=[node]"
+    info "HINT2: Check supported_nodes.json for list of supported nodes."
+}
 
 get_node_type() {
-    if [ -f "$BASEDIR/state/conf.json" ]; then
-        TEMP_NODE=$(jq '.node' "$BASEDIR/state/conf.json" -r 2>/dev/null)
-    else 
-        NO_CONF=true
+    OLD_NODE=$(get_json_file_value "$BASEDIR/state/conf.json" "node")
+    if [ -z "$OLD_NODE" ] && [ -z "$NODE" ]; then
+        print_node_not_defined
+        exit 6
     fi
 
-    if [ -n "$NODE" ]; then 
-        if [ -n "$TEMP_NODE" ] && [ ! "$TEMP_NODE" = "null" ] && [ ! "$TEMP_NODE" = "$NODE" ]; then    
-            # shellcheck disable=SC2034
-            OLD_NODE=$TEMP_NODE
-            # changing setup node
-            return 1
-        fi
-        # working new or existing node
-        return 0
-    else 
-        if [ -z "$TEMP_NODE" ] || [ "$NO_CONF" = "true" ]; then 
-            # missing node type
-            return 2
-        else 
-            NODE="$TEMP_NODE"
-            # working new or existing node
-            return 0
-        fi
+    if [ -n "$OLD_NODE" ] && [ -n "$NODE" ] && [ ! "$NODE" = "$OLD_NODE" ]; then
+        return 1
     fi
+
+    if [ -z "$NODE" ]; then
+        NODE=$OLD_NODE
+    fi
+    return 0
 }
 
 save_node_type() {
     set_json_file_value "$BASEDIR/state/conf.json" "node" "$NODE"
+}
+
+# $1 $NDOE
+get_node_type_source() {
+    if [ "$1" = "EXTERNAL" ]; then 
+        printf "%s" "$(get_json_file_value "$BASEDIR/state/conf.json" "node_source")"
+        return
+    fi 
+    NODE_SOURCE=$(get_json_file_value "$BASEDIR/supported_nodes.json" "$1")
+    
+    if [ -z "$NODE_SOURCE" ]; then 
+        NODE_SOURCE=$(get_json_value "$(curl -fsL \"$SUPPORTED_NODES_URL\")" "$1")
+    fi
+    printf "%s" "$NODE_SOURCE"
 }

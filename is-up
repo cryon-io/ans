@@ -35,14 +35,10 @@ BASEDIR=$(dirname "$PATH_TO_ANS")
 . "$BASEDIR/_ans_methods/util.sh"
 # shellcheck disable=SC1090
 . "$BASEDIR/_ans_methods/dist_info.sh"
-
-require_docker_privileges() {
-    if [ "$(groups | grep "docker" || echo "true")" = "true" ] && [ "$(groups | grep "root" || echo "true")" = "true" ]; then
-        error "This option requires docker privileges. Either run ans as root or grant user docker privileges."
-        info "HINT: sudo ./ans --grant-docker"
-        exit 2
-    fi
-}
+# shellcheck disable=SC1090
+. "$BASEDIR/_ans_methods/json.sh"
+# shellcheck disable=SC1090
+. "$BASEDIR/_ans_methods/privileges.sh"
 
 # update node type
 get_node_type
@@ -59,8 +55,8 @@ if [ ! -f "$COMPOSE_FILE" ]; then
     printf "false";
     exit 1;
 fi
-get_json_file_value "$BASEDIR/state/conf.json" "project_name"
-PROJECT_NAME=${JSON_VALUE:-$NODE}
+PROJECT_NAME=$(get_json_file_value "$BASEDIR/state/conf.json" "project_name")
+PROJECT_NAME=${PROJECT_NAME:-$NODE}
 
 SERVICES=$(docker-compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" ps --services | grep -c -v autoheal)
 if [ "$(docker-compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" ps -q | wc -l)" -ge "$SERVICES" ]; then 

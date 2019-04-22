@@ -18,6 +18,10 @@
 #
 #  Contact: cryi@tutanota.com
 
+# shellcheck disable=SC1090
+[ -f "$METHODS_DIR/privileges.sh" ] && . "$METHODS_DIR/privileges.sh" 
+# shellcheck disable=SC1090
+[ -f "$METHODS_DIR/_ans_methods/privileges.sh"  ] && . "$METHODS_DIR/_ans_methods/privileges.sh" 
 
 # updates USER to real user in case we are in login shell and used sudo
 update_current_user() {
@@ -26,14 +30,17 @@ update_current_user() {
 }
 
 create_user() {
+    require_root_privileges
     id -u "$1" > /dev/null || useradd "$1" -m -s /bin/sh
     id -u "$1" > /dev/null && return 0 || return 1
 }
 
 create_group() {
+    require_root_privileges
     grep "^$1:" /etc/group > /dev/null || groupadd "$1"
 }
 
 add_user_to_group() {
+    require_root_privileges
     groups "$1" | grep "$2" > /dev/null || usermod -a -G "$2" "$1"
 }

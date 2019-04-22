@@ -41,6 +41,7 @@ Usage:
     --prune                                     Deletes node service and data (chain, wallet, etc.)
     --prune-data                                Deletes node data (chain, wallet, etc.)
     --docker-prune                              Runs docker system cleanup. Requires confirmations. (Removes old containers and images)
+    -es|--external-source                       Sets source repository for EXTERNAL node type
 
     -f|--full                                   Runs all of the commands below.
 

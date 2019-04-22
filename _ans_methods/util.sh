@@ -18,98 +18,43 @@
 #
 #  Contact: cryi@tutanota.com
 
+PATH_TO_SCRIPT=$(readlink -f "$0")
+METHODS_DIR=$(dirname "$PATH_TO_SCRIPT")
+# shellcheck disable=SC1090
+[ -f "$METHODS_DIR/docker.sh" ] && . "$METHODS_DIR/docker.sh" 
+# shellcheck disable=SC1090
+[ -f "$METHODS_DIR/_ans_methods/docker.sh"  ] && . "$METHODS_DIR/_ans_methods/docker.sh" 
 
-# Sets value in json file (if file does not exist or invalid, it is recreated)
-# Params:
-# $1 - file
-# $2 - key
-# $3 - value
-set_json_file_value() {
-    if [ -s "$1" ]; then 
-        JSON_VALUE=$(jq ". = if has(\"$2\") then .[\"$2\"] = \"$3\" else . + { \"$2\" : \"$3\" } end " "$1" )
-        altValue="{ \"$2\":\"$3\" }"
-        printf "%s\n" "${JSON_VALUE:-$altValue}" > "$1" # in case json file is invalid, we will overwrite it
-    else 
-        printf "%s\n" "{ \"$2\":\"$3\" }" > "$1"
+# shellcheck disable=SC1090
+[ -f "$METHODS_DIR/prints.sh" ] && . "$METHODS_DIR/prints.sh" 
+# shellcheck disable=SC1090
+[ -f "$METHODS_DIR/_ans_methods/prints.sh"  ] && . "$METHODS_DIR/_ans_methods/prints.sh" 
+
+# shellcheck disable=SC1090
+[ -f "$METHODS_DIR/privileges.sh" ] && . "$METHODS_DIR/privileges.sh" 
+# shellcheck disable=SC1090
+[ -f "$METHODS_DIR/_ans_methods/privileges.sh"  ] && . "$METHODS_DIR/_ans_methods/privileges.sh" 
+
+# $1 PATH TO COMPOSE
+# $2 PATH TO IS UP
+# $3 $PROJECT_NAME
+# $4 $NODE
+
+stop_node() {
+    require_docker_privileges
+    if [ -n "$4" ]; then  
+        info "Stopping node: \"$4\""
+    else
+        info "Stopping node..."
     fi
-} 
-
-# returns JSON value stored in $JSON_VALUE variable
-# $1 file
-# $2 key
-get_json_file_value() {
-    JSON_VALUE=$(jq ".[\"$2\"]" "$1" -r 2>/dev/null)
-    JSON_VALUE=$(if [ ! "$JSON_VALUE" = "null" ] && [ ! "$JSON_VALUE" = "undefined" ]; then printf "%s" "$JSON_VALUE"; fi)
-}
-
-
-# returns JSON value stored in $JSON_VALUE variable
-# $1 string
-# $2 key
-get_json_value() {
-    JSON_VALUE=$(printf "%s\n" "$1" | jq ".[\"$2\"]" -r 2>/dev/null)
-    JSON_VALUE=$(if [ ! "$JSON_VALUE" = "null" ] && [ ! "$JSON_VALUE" = "undefined" ]; then printf "%s" "$JSON_VALUE"; fi)
-}
-
-# clones git repository to specified folder
-# $1 - url to repository
-# $2 - output directory
-clone_repository() {
-    if [ -n "$2" ]; then
-        git init -q "$2"
-        if ! git --git-dir="$2/.git" --work-tree="$2" remote set-url origin "$1" > /dev/null; then 
-            git --git-dir="$2/.git" --work-tree="$2" remote add origin "$1"
+    i=0
+    while sh "$2" >/dev/null; do
+        stop_service "$1" "$3"
+        i="$((i+1))"
+        if [ "$i" -gt "4" ]; then
+            error "Node stop retry limit reached. Failed to stop node."
+            info "Please stop node manually and retry..."
+            exit 15
         fi
-        git --git-dir="$2/.git" --work-tree="$2" fetch --all
-        git --git-dir="$2/.git" --work-tree="$2" reset --hard origin/master
-        #git clone "$1" "$2"
-        return 0
-    else 
-        return 1
-    fi
-}
-
-# resets git repository to latest commit 
-# $1 path to git repository
-reset_repository() {
-    git --git-dir="$1/.git" --work-tree="$1" reset --hard > /dev/null
-}
-
-repository_branch_switch() {
-    if [ -d "$1" ]; then
-        BRANCH=${2:-master}
-        git --git-dir="$1/.git" --work-tree="$1" checkout -f "$BRANCH"
-        return 0
-    else 
-        return 1
-    fi
-}
-
-# fetches latest changes into git repository
-# $1 - path
-update_repository() {
-    if [ -d "$1" ]; then
-        BRANCH=${2:-master}
-
-        git --git-dir="$1/.git" --work-tree="$1" fetch --all && git --git-dir="$1/.git" --work-tree="$1" reset --hard "origin/$BRANCH"
-        return 0
-    else 
-        return 1
-    fi
-}
-
-# converts repository link to specific file raw link
-# $1 - url to repository
-# $2 - file path relative to repository
-# $3 - branch (default master)
-# returns $RESULT
-repository_link_to_raw_link() {
-    BRANCH=${3:-master}
-    TEMP=$(echo "$1" | sed 's/https\:\/\/github\.com/https\:\/\/raw\.githubusercontent.com/g' | sed 's/.git$/\//g')
-    RESULT="$TEMP$BRANCH/$2"
-}
-
-get_latest_github_release() {
-    # shellcheck disable=SC2034
-    RESULT=$(curl -sL "https://api.github.com/repos/$1/releases/latest" | jq ".[\"tag_name\"]" -r 2>/dev/null)                            
+    done
 }
