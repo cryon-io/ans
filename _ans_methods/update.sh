@@ -93,7 +93,7 @@ update_node() {
         error "Cannot find $NODE update-node file: $update_file"
         warn "Update node core skipped"
     else
-        sh "$BASEDIR/containers/$NODE/$JSON_VALUE"
+        sh "$update_file"
         case "$?" in
         "0")
             info "Node was updated or running on latest version."
