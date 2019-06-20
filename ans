@@ -162,7 +162,7 @@ parse_params() {
             ANS_BRANCH=$(echo "$arg" | sed 's/--ans-branch=//g')
             ;;
         --node-branch=*)
-            NODE_BRANCH=$(echo "$arg" | sed 's/--ans-branch=//g')
+            NODE_BRANCH=$(echo "$arg" | sed 's/--node-branch=//g')
             ;;
         --prune)
             PRUNE="full"
@@ -266,7 +266,7 @@ fi
 if [ -n "$NODE_BRANCH" ]; then
     require_root_privileges
     set_json_file_value "$BASEDIR/state/conf.json" "node_branch" "$NODE_BRANCH"
-    repository_branch_switch "$BASEDIR/containers/$NODE" "$ANS_BRANCH"
+    repository_branch_switch "$BASEDIR/containers/$NODE" "$NODE_BRANCH"
     restoreFilePermissions=true
 elif [ -z "$ANS_BRANCH" ] && [ -f "$BASEDIR/state/conf.json" ]; then
     NODE_BRANCH=$(get_json_file_value "$BASEDIR/state/conf.json" "node_branch")
