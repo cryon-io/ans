@@ -10,5 +10,6 @@
     "SMARTCASH_SMART" :"https://github.com/cryon-io/docker-smartcash-smartnode.git",
     "ZEST_MN" : "https://github.com/cryon-io/docker-zest-mn.git",
     "SNODE_MN" : "https://github.com/cryon-io/docker-snode-mn.git",
-    "ZEN_SECURE": "https://github.com/cryon-io/docker-zen-secure-node.git"
+    "ZEN_SECURE": "https://github.com/cryon-io/docker-zen-secure-node.git",
+    "XSG_MN": "https://github.com/cryon-io/docker-snowgem-mn.git"
 }
