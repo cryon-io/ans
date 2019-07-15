@@ -78,7 +78,7 @@ get_node_type_source() {
     NODE_SOURCE=$(get_json_file_value "$BASEDIR/supported_nodes.json" "$1")
     
     if [ -z "$NODE_SOURCE" ]; then 
-        NODE_SOURCE=$(get_json_value "$(curl -fsL \"$SUPPORTED_NODES_URL\")" "$1")
+        NODE_SOURCE=$(get_json_value "$(curl -fsL "$SUPPORTED_NODES_URL" --header 'Cache-Control: no-cache')" "$1")
     fi
     printf "%s" "$NODE_SOURCE"
 }
