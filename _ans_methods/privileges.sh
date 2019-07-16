@@ -18,16 +18,19 @@
 #
 #  Contact: cryi@tutanota.com
 
-
 PATH_TO_SCRIPT=$(readlink -f "$0")
 METHODS_DIR=$(dirname "$PATH_TO_SCRIPT")
 # shellcheck disable=SC1090
-[ -f "$METHODS_DIR/prints.sh" ] && . "$METHODS_DIR/prints.sh" 
+if [ -f "$METHODS_DIR/prints.sh" ]; then
+    . "$METHODS_DIR/prints.sh"
+fi
 # shellcheck disable=SC1090
-[ -f "$METHODS_DIR/_ans_methods/prints.sh"  ] && . "$METHODS_DIR/_ans_methods/prints.sh" 
+if [ -f "$METHODS_DIR/_ans_methods/prints.sh" ]; then
+    . "$METHODS_DIR/_ans_methods/prints.sh"
+fi
 
 require_root_privileges() {
-    if [ ! "$(id -u)" = 0 ] ; then
+    if [ ! "$(id -u)" = 0 ]; then
         error "This option requires root (or sudo) privileges"
         exit 1
     fi

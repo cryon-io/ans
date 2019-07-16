@@ -24,14 +24,14 @@
 # $2 - key
 # $3 - value
 set_json_file_value() {
-    if [ -s "$1" ]; then 
-        JSON_VALUE=$(jq ". = if has(\"$2\") then .[\"$2\"] = \"$3\" else . + { \"$2\" : \"$3\" } end " "$1" )
+    if [ -s "$1" ]; then
+        JSON_VALUE=$(jq ". = if has(\"$2\") then .[\"$2\"] = \"$3\" else . + { \"$2\" : \"$3\" } end " "$1")
         altValue="{ \"$2\":\"$3\" }"
-        printf "%s\n" "${JSON_VALUE:-$altValue}" > "$1" # in case json file is invalid, we will overwrite it
-    else 
-        printf "%s\n" "{ \"$2\":\"$3\" }" > "$1"
+        printf "%s\n" "${JSON_VALUE:-$altValue}" >"$1" # in case json file is invalid, we will overwrite it
+    else
+        printf "%s\n" "{ \"$2\":\"$3\" }" >"$1"
     fi
-} 
+}
 
 # returns JSON value stored in $JSON_VALUE variable
 # $1 file
@@ -41,7 +41,6 @@ get_json_file_value() {
     JSON_VALUE=$(if [ ! "$JSON_VALUE" = "null" ] && [ ! "$JSON_VALUE" = "undefined" ]; then printf "%s" "$JSON_VALUE"; fi)
     printf "%s" "$JSON_VALUE"
 }
-
 
 # returns JSON value stored in $JSON_VALUE variable
 # $1 string

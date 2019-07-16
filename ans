@@ -191,23 +191,30 @@ parse_params() {
 parse_params "$@"
 
 # prune docker, if requested
-[ "$dockerPrune" = "true" ] && docker system prune
+if [ "$dockerPrune" = "true" ]; then
+    docker system prune
+fi
 
 update_current_user
 USER=${SPECIFIC_USER:-"$USER"}
 
 if [ "$user" = "true" ]; then
-    create_user "$USER" && success "$USER successfully created." ||
-        { error "Failed to create $USER" && exit 4; }
+    if create_user "$USER"; then
+        success "$USER successfully created."
+    else
+        error "Failed to create $USER"
+        exit 4
+    fi
 fi
 
 # save node source, if we got new one
-[ -n "$NODE_SOURCE" ] &&
+if [ -n "$NODE_SOURCE" ]; then
     set_json_file_value "$BASEDIR/state/conf.json" "node_source" "$NODE_SOURCE"
-
+fi
 # install dependencies
-[ "$full" = "true" ] || [ "$dependencies" = "true" ] &&
+if [ "$full" = "true" ] || [ "$dependencies" = "true" ]; then
     install_dependencies
+fi
 
 # connect ANS repository in case it was downloaded as zip
 git --git-dir="$BASEDIR/.git" --work-tree="$BASEDIR" remote get-url origin >/dev/null 2>&1 ||
@@ -221,35 +228,48 @@ if ! get_node_type; then
     stop_node "$BASEDIR/containers/$OLD_NODE/docker-compose.yml" "$BASEDIR/is-up" "$OLD_PROJECT_NAME" "$OLD_NODE"
 fi
 
-[ -z "$DEV" ] && DEV=$(get_json_file_value "$BASEDIR/state/conf.json" "DEV")
-[ -n "$DEV" ] && set_json_file_value "$BASEDIR/state/conf.json" "DEV" "$DEV"
+if [ -z "$DEV" ]; then
+    DEV=$(get_json_file_value "$BASEDIR/state/conf.json" "DEV")
+else
+    set_json_file_value "$BASEDIR/state/conf.json" "DEV" "$DEV"
+fi
 
 # get project_name or save if we got new one
-[ -z "$PROJECT_NAME" ] && PROJECT_NAME=${OLD_PROJECT_NAME:-$NODE} ||
+if [ -z "$PROJECT_NAME" ]; then
+    PROJECT_NAME=${OLD_PROJECT_NAME:-$NODE}
+else
     set_json_file_value "$BASEDIR/state/conf.json" "project_name" "$PROJECT_NAME"
+fi
 
 # stop running node
-[ -n "$NODE" ] && [ "$stop" = "true" ] &&
+if [ -n "$NODE" ] && [ "$stop" = "true" ]; then
     stop_node "$BASEDIR/containers/$NODE/docker-compose.yml" "$BASEDIR/is-up" "$PROJECT_NAME" "$NODE"
+fi
 
 # prune ans environment
 case $PRUNE in
 "data")
     require_root_privileges
-    rm -r "$BASEDIR/containers/$NODE/data/"* ||
-        { error "Failed prune node data. Please retry..." && exit 17; }
+    if ! rm -r "$BASEDIR/containers/$NODE/data/"*; then
+        error "Failed prune node data. Please retry..."
+        exit 17
+    fi
     ;;
 "full")
     require_root_privileges
-    rm -r "$BASEDIR/containers/"* ||
-        { error "Failed prune containers. Please retry..." && exit 16; }
+    if ! rm -r "$BASEDIR/containers/"*; then
+        error "Failed prune containers. Please retry..."
+        exit 16
+    fi
     ;;
 esac
 
 # get node source and check, if node type supported
 NODE_SOURCE=$(get_node_type_source "$NODE")
-[ -z "$NODE_SOURCE" ] &&
-    { error "Not supported node type: $NODE" && exit 7; }
+if [ -z "$NODE_SOURCE" ]; then
+    error "Not supported node type: $NODE"
+    exit 7
+fi
 
 # load ans branch
 if [ -n "$ANS_BRANCH" ]; then
@@ -274,7 +294,12 @@ elif [ -z "$ANS_BRANCH" ] && [ -f "$BASEDIR/state/conf.json" ]; then
 fi
 
 # update ans
-[ "$full" = "true" ] || [ "$UPDATE_ANS" = "true" ] && update_ans
+if [ "$full" = "true" ] || [ "$UPDATE_ANS" = "true" ]; then
+    update_ans
+    if [ "$?" = "1" ]; then
+        restoreFilePermissions=true
+    fi
+fi
 
 # Clone service repository if not yet cloned
 if ! git --git-dir="$BASEDIR/containers/$NODE/.git" rev-parse --git-dir >/dev/null 2>&1; then
@@ -283,24 +308,38 @@ if ! git --git-dir="$BASEDIR/containers/$NODE/.git" rev-parse --git-dir >/dev/nu
     repository_branch_switch "$BASEDIR/containers/$NODE" "$NODE_BRANCH"
 else
     # always reset repository, if not cloned ... ensures deterministic (except if dev is set... for dev purpose only)
-    [ ! "$DEV" = "true" ] && reset_repository "$BASEDIR/containers/$NODE"
+    if [ ! "$DEV" = "true" ]; then
+        reset_repository "$BASEDIR/containers/$NODE"
+    fi
     restoreNodeFilePermissions=true
     silentRestoreNodeFilePermissions=true
 fi
 
 # update service
-[ "$full" = "true" ] || [ "$UPDATE_SERVICE" = "true" ] && update_service
+if [ "$full" = "true" ] || [ "$UPDATE_SERVICE" = "true" ]; then
+    update_service
+    if [ "$?" = "1" ]; then
+        restoreFilePermissions=true
+        build=true
+        start=true
+        noCache="--no-cache"
+    fi
+fi
 
 # ensure that we use proper version of ans for node management
 DEF_FILE="$BASEDIR/containers/$NODE/def.json"
-[ ! -f "$DEF_FILE" ] &&
-    { error "Cannot find $NODE definition file: $DEF_FILE" && exit 19; }
+if [ ! -f "$DEF_FILE" ]; then
+    error "Cannot find $NODE definition file: $DEF_FILE"
+    exit 19
+fi
 
 NEEDED_VER=$(get_json_file_value "$BASEDIR/containers/$NODE/def.json" "required-ans-version")
 NEEDED_VER=${NEEDED_VER:-0}
 require_ans_version "$NEEDED_VER"
 
-[ ! "$passed" = "true" ] && save_node_type
+if [ ! "$passed" = "true" ]; then
+    save_node_type
+fi
 
 # set fs permissions
 if [ "$full" = "true" ] || [ "$restoreFilePermissions" = "true" ]; then
@@ -437,13 +476,21 @@ serviceDef="$BASEDIR/containers/$NODE/docker-compose.yml"
 # build service
 if [ "$full" = "true" ] || [ "$build" = "true" ]; then
     if [ "$user" = "true" ]; then
-        runuser -l "$USER" -c "sh $PATH_TO_ANS -b --passed"
+        if ! runuser -l "$USER" -c "sh $PATH_TO_ANS -b --passed"; then
+            error "Failed to build service for $NODE"
+            exit 13
+        fi
     else
         require_docker_privileges
-        [ ! -f "$serviceDef" ] &&
-            { error "Cannot find $NODE compose file: $serviceDef" && exit 8; }
+        if [ ! -f "$serviceDef" ]; then
+            error "Cannot find $NODE compose file: $serviceDef"
+            exit 8
+        fi
 
-        build_service "$BASEDIR/containers/$NODE/docker-compose.yml" "$noCache" "$PROJECT_NAME"
+        if ! build_service "$BASEDIR/containers/$NODE/docker-compose.yml" "$noCache" "$PROJECT_NAME"; then
+            error "Failed to build service for $NODE"
+            exit 13
+        fi
     fi
 fi
 
@@ -455,8 +502,12 @@ if [ "$full" = "true" ] || [ "$start" = "true" ]; then
         if [ -f "$BEFORE_START_SCRIPT" ]; then
             info "Running before-start init script"
 
-            sh "$BEFORE_START_SCRIPT" && info "before-start initialization successful" ||
-                { error "Failed to finish before-start initialization" && exit 12; }
+            if sh "$BEFORE_START_SCRIPT"; then
+                info "before-start initialization successful"
+            else
+                error "Failed to finish before-start initialization"
+                exit 12
+            fi
         fi
     fi
 fi
@@ -467,16 +518,20 @@ if [ "$full" = "true" ] || [ "$start" = "true" ]; then
         runuser -l "$USER" -c "sh $PATH_TO_ANS -s --passed"
     else
         require_docker_privileges
-        [ ! -f "$serviceDef" ] &&
-            { error "Cannot find $NODE compose file: $serviceDef" && exit 8; }
+        if [ ! -f "$serviceDef" ]; then
+            error "Cannot find $NODE compose file: $serviceDef"
+            exit 8
+        fi
 
         start_service "$serviceDef" "$forceRecreate" "$PROJECT_NAME"
         echo "waiting (15s) for MN to start..."
         sleep 15
         script_sub_path=$(get_json_file_value "$DEF_FILE" "is-up")
 
-        sh "$BASEDIR/containers/$NODE/$script_sub_path" ||
-            { error "Failed to start node. Exiting..." && exit 5; }
+        if sh "$BASEDIR/containers/$NODE/$script_sub_path"; then
+            error "Failed to start node. Exiting..."
+            exit 5
+        fi
     fi
 fi
 
@@ -486,8 +541,10 @@ if [ "$full" = "true" ] || [ "$start" = "true" ]; then
         script_sub_path=$(get_json_file_value "$DEF_FILE" "on-start")
         ON_START_SCRIPT="$BASEDIR/containers/$NODE/$script_sub_path"
 
-        [ -f "$ON_START_SCRIPT" ] && info "Running on-start init script" &&
+        if [ -f "$ON_START_SCRIPT" ]; then
+            info "Running on-start init script"
             sh "$ON_START_SCRIPT"
+        fi
     fi
 fi
 
@@ -546,7 +603,7 @@ if [ "$full" = "true" ] || [ "$info" = "true" ]; then
 
     printf "%s
 TEMPLATE VERSION: %s
-ANS VERSION: %s\n" "$INFO_FROM_NODE" "$TEMPLATE_VERSION" "$ANS_VERSION" >$BASEDIR/node.info
+ANS VERSION: %s\n" "$INFO_FROM_NODE" "$TEMPLATE_VERSION" "$ANS_VERSION" >"$BASEDIR/node.info"
     printf "%s
 TEMPLATE VERSION: %s
 ANS VERSION: %s\n" "$INFO_FROM_NODE" "$TEMPLATE_VERSION" "$ANS_VERSION"

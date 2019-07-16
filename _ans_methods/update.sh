@@ -25,24 +25,40 @@
 ANS_VERSION_URL="https://raw.githubusercontent.com/cryon-io/ans/master/version.json"
 
 # shellcheck disable=SC1090
-[ -f "$METHODS_DIR/privileges.sh" ] && . "$METHODS_DIR/privileges.sh"
+if [ -f "$METHODS_DIR/privileges.sh" ]; then
+    . "$METHODS_DIR/privileges.sh"
+fi
 # shellcheck disable=SC1090
-[ -f "$METHODS_DIR/_ans_methods/privileges.sh" ] && . "$METHODS_DIR/_ans_methods/privileges.sh"
+if [ -f "$METHODS_DIR/_ans_methods/privileges.sh" ]; then
+    . "$METHODS_DIR/_ans_methods/privileges.sh"
+fi
 
 # shellcheck disable=SC1090
-[ -f "$METHODS_DIR/json.sh" ] && . "$METHODS_DIR/json.sh"
+if [ -f "$METHODS_DIR/json.sh" ]; then
+    . "$METHODS_DIR/json.sh"
+fi
 # shellcheck disable=SC1090
-[ -f "$METHODS_DIR/_ans_methods/json.sh" ] && . "$METHODS_DIR/_ans_methods/json.sh"
+if [ -f "$METHODS_DIR/_ans_methods/json.sh" ]; then
+    . "$METHODS_DIR/_ans_methods/json.sh"
+fi
 
 # shellcheck disable=SC1090
-[ -f "$METHODS_DIR/util.sh" ] && . "$METHODS_DIR/util.sh"
+if [ -f "$METHODS_DIR/util.sh" ]; then
+    . "$METHODS_DIR/util.sh"
+fi
 # shellcheck disable=SC1090
-[ -f "$METHODS_DIR/_ans_methods/util.sh" ] && . "$METHODS_DIR/_ans_methods/util.sh"
+if [ -f "$METHODS_DIR/_ans_methods/util.sh" ]; then
+    . "$METHODS_DIR/_ans_methods/util.sh"
+fi
 
 # shellcheck disable=SC1090
-[ -f "$METHODS_DIR/git.sh" ] && . "$METHODS_DIR/git.sh"
+if [ -f "$METHODS_DIR/git.sh" ]; then
+    . "$METHODS_DIR/git.sh"
+fi
 # shellcheck disable=SC1090
-[ -f "$METHODS_DIR/_ans_methods/git.sh" ] && . "$METHODS_DIR/_ans_methods/git.sh"
+if [ -f "$METHODS_DIR/_ans_methods/git.sh" ]; then
+    . "$METHODS_DIR/_ans_methods/git.sh"
+fi
 
 update_ans() {
     require_root_privileges
@@ -53,7 +69,9 @@ update_ans() {
         info "Updating ans"
         update_repository "$BASEDIR" "$ANS_BRANCH"
         chmod +x "$PATH_TO_ANS" "$BASEDIR/cli" "$BASEDIR/is-up"
-        restoreFilePermissions=true
+        return 1
+    else 
+        return 0
     fi
 }
 
@@ -61,8 +79,10 @@ update_service() {
     LINK_TO_DEF=$(repository_link_to_raw_link "$NODE_SOURCE" "def.json")
     NODE_DEF=$(curl -fsL "$LINK_TO_DEF")
 
-    [ -z "$NODE_DEF" ] &&
-        { error "Failed to obtain node service definition. Please retry..." && exit 11; }
+    if [ -z "$NODE_DEF" ]; then
+        error "Failed to obtain node service definition. Please retry..."
+        exit 11;
+    fi
 
     REQUIRED_ANS_VERSION=$(get_json_value "$NODE_DEF" "required-ans-version")
 
@@ -76,10 +96,9 @@ update_service() {
         info "Updating service definition"
         update_repository "$BASEDIR/containers/$NODE"
         repository_branch_switch "$BASEDIR/containers/$NODE" "$NODE_BRANCH"
-        restoreFilePermissions=true
-        build=true
-        start=true
-        noCache="--no-cache"
+        return 1
+    else 
+        return 0
     fi
 }
 

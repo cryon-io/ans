@@ -21,19 +21,31 @@
 PATH_TO_SCRIPT=$(readlink -f "$0")
 METHODS_DIR=$(dirname "$PATH_TO_SCRIPT")
 # shellcheck disable=SC1090
-[ -f "$METHODS_DIR/docker.sh" ] && . "$METHODS_DIR/docker.sh" 
+if [ -f "$METHODS_DIR/docker.sh" ]; then
+    . "$METHODS_DIR/docker.sh"
+fi
 # shellcheck disable=SC1090
-[ -f "$METHODS_DIR/_ans_methods/docker.sh"  ] && . "$METHODS_DIR/_ans_methods/docker.sh" 
+if [ -f "$METHODS_DIR/_ans_methods/docker.sh" ]; then
+    . "$METHODS_DIR/_ans_methods/docker.sh"
+fi
 
 # shellcheck disable=SC1090
-[ -f "$METHODS_DIR/prints.sh" ] && . "$METHODS_DIR/prints.sh" 
+if [ -f "$METHODS_DIR/prints.sh" ]; then
+    . "$METHODS_DIR/prints.sh"
+fi
 # shellcheck disable=SC1090
-[ -f "$METHODS_DIR/_ans_methods/prints.sh"  ] && . "$METHODS_DIR/_ans_methods/prints.sh" 
+if [ -f "$METHODS_DIR/_ans_methods/prints.sh" ]; then
+    . "$METHODS_DIR/_ans_methods/prints.sh"
+fi
 
 # shellcheck disable=SC1090
-[ -f "$METHODS_DIR/privileges.sh" ] && . "$METHODS_DIR/privileges.sh" 
+if [ -f "$METHODS_DIR/privileges.sh" ]; then
+    . "$METHODS_DIR/privileges.sh"
+fi
 # shellcheck disable=SC1090
-[ -f "$METHODS_DIR/_ans_methods/privileges.sh"  ] && . "$METHODS_DIR/_ans_methods/privileges.sh" 
+if [ -f "$METHODS_DIR/_ans_methods/privileges.sh" ]; then
+    . "$METHODS_DIR/_ans_methods/privileges.sh"
+fi
 
 # $1 PATH TO COMPOSE
 # $2 PATH TO IS UP
@@ -42,7 +54,7 @@ METHODS_DIR=$(dirname "$PATH_TO_SCRIPT")
 
 stop_node() {
     require_docker_privileges
-    if [ -n "$4" ]; then  
+    if [ -n "$4" ]; then
         info "Stopping node: \"$4\""
     else
         info "Stopping node..."
@@ -50,7 +62,7 @@ stop_node() {
     i=0
     while sh "$2" >/dev/null; do
         stop_service "$1" "$3"
-        i="$((i+1))"
+        i="$((i + 1))"
         if [ "$i" -gt "4" ]; then
             error "Node stop retry limit reached. Failed to stop node."
             info "Please stop node manually and retry..."

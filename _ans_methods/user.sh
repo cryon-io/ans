@@ -19,9 +19,13 @@
 #  Contact: cryi@tutanota.com
 
 # shellcheck disable=SC1090
-[ -f "$METHODS_DIR/privileges.sh" ] && . "$METHODS_DIR/privileges.sh" 
+if [ -f "$METHODS_DIR/privileges.sh" ]; then
+    . "$METHODS_DIR/privileges.sh"
+fi
 # shellcheck disable=SC1090
-[ -f "$METHODS_DIR/_ans_methods/privileges.sh"  ] && . "$METHODS_DIR/_ans_methods/privileges.sh" 
+if [ -f "$METHODS_DIR/_ans_methods/privileges.sh" ]; then
+    . "$METHODS_DIR/_ans_methods/privileges.sh"
+fi
 
 # updates USER to real user in case we are in login shell and used sudo
 update_current_user() {
@@ -31,16 +35,16 @@ update_current_user() {
 
 create_user() {
     require_root_privileges
-    id -u "$1" > /dev/null || useradd "$1" -m -s /bin/sh
-    id -u "$1" > /dev/null && return 0 || return 1
+    id -u "$1" >/dev/null || useradd "$1" -m -s /bin/sh
+    id -u "$1" >/dev/null && return 0 || return 1
 }
 
 create_group() {
     require_root_privileges
-    grep "^$1:" /etc/group > /dev/null || groupadd "$1"
+    grep "^$1:" /etc/group >/dev/null || groupadd "$1"
 }
 
 add_user_to_group() {
     require_root_privileges
-    groups "$1" | grep "$2" > /dev/null || usermod -a -G "$2" "$1"
+    groups "$1" | grep "$2" >/dev/null || usermod -a -G "$2" "$1"
 }

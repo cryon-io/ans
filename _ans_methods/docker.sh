@@ -19,24 +19,39 @@
 #  Contact: cryi@tutanota.com
 
 build_service() {
-    if [ -n "$3" ]; then 
-        project="--project-name \"$3\""
-    fi  
-    docker-compose -f "$1" $project build $2
+    if [ -f "$1" ]; then
+        if [ -n "$3" ]; then
+            # shellcheck disable=SC2086
+            if ! docker-compose -f "$1" --project-name "$3" build $2; then
+                return 13
+            fi
+        else
+            # shellcheck disable=SC2086
+            if ! docker-compose -f "$1" build $2; then
+                return 13
+            fi
+        fi
+    fi
 }
 
 start_service() {
-    if [ -n "$3" ]; then 
-        project="--project-name \"$3\""
-    fi 
-    docker-compose -f "$1" $project up -d --remove-orphans -t "${DOCKER_TIMEOUT:-120}" $2
+    if [ -f "$1" ]; then
+        if [ -n "$3" ]; then
+            # shellcheck disable=SC2086
+            docker-compose -f "$1" --project-name "$3" up -d --remove-orphans -t "${DOCKER_TIMEOUT:-120}" $2
+        else
+            # shellcheck disable=SC2086
+            docker-compose -f "$1" up -d --remove-orphans -t "${DOCKER_TIMEOUT:-120}" $2
+        fi
+    fi
 }
 
 stop_service() {
-    if [ -n "$2" ]; then 
-        project="--project-name \"$2\""
-    fi 
     if [ -f "$1" ]; then
-        docker-compose -f "$1" $project down -t "${DOCKER_TIMEOUT:-120}"
-    fi 
+        if [ -n "$2" ]; then
+            docker-compose -f "$1" --project-name "$2" down -t "${DOCKER_TIMEOUT:-120}"
+        else
+            docker-compose -f "$1" down -t "${DOCKER_TIMEOUT:-120}"
+        fi
+    fi
 }

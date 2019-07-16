@@ -19,7 +19,7 @@
 #  Contact: cryi@tutanota.com
 
 script_usage() {
-    cat << EOF
+    cat <<EOF
                     == AUTONOMOUS NODE SYSTEM ==
 
 Usage:

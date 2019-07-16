@@ -19,7 +19,7 @@
 #  Contact: cryi@tutanota.com
 
 #######################################################################################
-############                THIS MODULE IS NOT STANDALONE                  ############  
+############                THIS MODULE IS NOT STANDALONE                  ############
 #######################################################################################
 
 PATH_TO_SCRIPT=$(readlink -f "$0")
@@ -28,19 +28,31 @@ METHODS_DIR=$(dirname "$PATH_TO_SCRIPT")
 SUPPORTED_NODES_URL="https://raw.githubusercontent.com/cryon-io/ans/master/supported_nodes.json"
 
 # shellcheck disable=SC1090
-[ -f "$METHODS_DIR/util.sh" ] && . "$METHODS_DIR/util.sh" 
+if [ -f "$METHODS_DIR/util.sh" ]; then
+    . "$METHODS_DIR/util.sh"
+fi
 # shellcheck disable=SC1090
-[ -f "$METHODS_DIR/_ans_methods/util.sh"  ] && . "$METHODS_DIR/_ans_methods/util.sh" 
+if [ -f "$METHODS_DIR/_ans_methods/util.sh" ]; then
+    . "$METHODS_DIR/_ans_methods/util.sh"
+fi
 
 # shellcheck disable=SC1090
-[ -f "$METHODS_DIR/prints.sh" ] && . "$METHODS_DIR/prints.sh" 
+if [ -f "$METHODS_DIR/prints.sh" ]; then
+    . "$METHODS_DIR/prints.sh"
+fi
 # shellcheck disable=SC1090
-[ -f "$METHODS_DIR/_ans_methods/prints.sh"  ] && . "$METHODS_DIR/_ans_methods/prints.sh" 
+if [ -f "$METHODS_DIR/_ans_methods/prints.sh" ]; then
+    . "$METHODS_DIR/_ans_methods/prints.sh"
+fi
 
 # shellcheck disable=SC1090
-[ -f "$METHODS_DIR/json.sh" ] && . "$METHODS_DIR/json.sh" 
+if [ -f "$METHODS_DIR/json.sh" ]; then
+    . "$METHODS_DIR/json.sh"
+fi
 # shellcheck disable=SC1090
-[ -f "$METHODS_DIR/_ans_methods/json.sh"  ] && . "$METHODS_DIR/_ans_methods/json.sh" 
+if [ -f "$METHODS_DIR/_ans_methods/json.sh" ]; then
+    . "$METHODS_DIR/_ans_methods/json.sh"
+fi
 
 print_node_not_defined() {
     error "NODE type not defined."
@@ -71,13 +83,13 @@ save_node_type() {
 
 # $1 $NDOE
 get_node_type_source() {
-    if [ "$1" = "EXTERNAL" ]; then 
+    if [ "$1" = "EXTERNAL" ]; then
         printf "%s" "$(get_json_file_value "$BASEDIR/state/conf.json" "node_source")"
         return
-    fi 
+    fi
     NODE_SOURCE=$(get_json_file_value "$BASEDIR/supported_nodes.json" "$1")
-    
-    if [ -z "$NODE_SOURCE" ]; then 
+
+    if [ -z "$NODE_SOURCE" ]; then
         NODE_SOURCE=$(get_json_value "$(curl -fsL "$SUPPORTED_NODES_URL" --header 'Cache-Control: no-cache')" "$1")
     fi
     printf "%s" "$NODE_SOURCE"
