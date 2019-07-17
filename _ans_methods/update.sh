@@ -122,9 +122,11 @@ update_node() {
             ;;
         "2")
             error "Failed to update node"
+            exit 20
             ;;
         "3")
             error "Failed to get node.info"
+            exit 21
             ;;
         esac
     fi
