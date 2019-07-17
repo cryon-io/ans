@@ -20,15 +20,30 @@
 
 build_service() {
     if [ -f "$1" ]; then
-        if [ -n "$3" ]; then
-            # shellcheck disable=SC2086
-            if ! docker-compose -f "$1" --project-name "$3" build $2; then
-                return 13
+        OVERRIDE_COMPOSE_FILE=$(printf "%s" "$1" | sed "s/.yml$/.override.yml/")
+        if [ -f "$OVERRIDE_COMPOSE_FILE" ]; then
+            if [ -n "$3" ]; then
+                # shellcheck disable=SC2086
+                if ! docker-compose -f "$1" -f "$OVERRIDE_COMPOSE_FILE" --project-name "$3" build $2; then
+                    return 13
+                fi
+            else
+                # shellcheck disable=SC2086
+                if ! docker-compose -f "$1" -f "$OVERRIDE_COMPOSE_FILE" build $2; then
+                    return 13
+                fi
             fi
         else
-            # shellcheck disable=SC2086
-            if ! docker-compose -f "$1" build $2; then
-                return 13
+            if [ -n "$3" ]; then
+                # shellcheck disable=SC2086
+                if ! docker-compose -f "$1" --project-name "$3" build $2; then
+                    return 13
+                fi
+            else
+                # shellcheck disable=SC2086
+                if ! docker-compose -f "$1" build $2; then
+                    return 13
+                fi
             fi
         fi
     fi
@@ -36,22 +51,42 @@ build_service() {
 
 start_service() {
     if [ -f "$1" ]; then
-        if [ -n "$3" ]; then
-            # shellcheck disable=SC2086
-            docker-compose -f "$1" --project-name "$3" up -d --remove-orphans -t "${DOCKER_TIMEOUT:-120}" $2
+        OVERRIDE_COMPOSE_FILE=$(printf "%s" "$1" | sed "s/.yml$/.override.yml/")
+        if [ -f "$OVERRIDE_COMPOSE_FILE" ]; then
+            if [ -n "$3" ]; then
+                # shellcheck disable=SC2086
+                docker-compose -f "$1" -f "$OVERRIDE_COMPOSE_FILE" --project-name "$3" up -d --remove-orphans -t "${DOCKER_TIMEOUT:-120}" $2
+            else
+                # shellcheck disable=SC2086
+                docker-compose -f "$1" -f "$OVERRIDE_COMPOSE_FILE" up -d --remove-orphans -t "${DOCKER_TIMEOUT:-120}" $2
+            fi
         else
-            # shellcheck disable=SC2086
-            docker-compose -f "$1" up -d --remove-orphans -t "${DOCKER_TIMEOUT:-120}" $2
+            if [ -n "$3" ]; then
+                # shellcheck disable=SC2086
+                docker-compose -f "$1" --project-name "$3" up -d --remove-orphans -t "${DOCKER_TIMEOUT:-120}" $2
+            else
+                # shellcheck disable=SC2086
+                docker-compose -f "$1" up -d --remove-orphans -t "${DOCKER_TIMEOUT:-120}" $2
+            fi
         fi
     fi
 }
 
 stop_service() {
     if [ -f "$1" ]; then
-        if [ -n "$2" ]; then
-            docker-compose -f "$1" --project-name "$2" down -t "${DOCKER_TIMEOUT:-120}"
+        OVERRIDE_COMPOSE_FILE=$(printf "%s" "$1" | sed "s/.yml$/.override.yml/")
+        if [ -f "$OVERRIDE_COMPOSE_FILE" ]; then
+            if [ -n "$2" ]; then
+                docker-compose -f "$1" -f "$OVERRIDE_COMPOSE_FILE" --project-name "$2" down -t "${DOCKER_TIMEOUT:-120}"
+            else
+                docker-compose -f "$1" -f "$OVERRIDE_COMPOSE_FILE" down -t "${DOCKER_TIMEOUT:-120}"
+            fi
         else
-            docker-compose -f "$1" down -t "${DOCKER_TIMEOUT:-120}"
+            if [ -n "$2" ]; then
+                docker-compose -f "$1" --project-name "$2" down -t "${DOCKER_TIMEOUT:-120}"
+            else
+                docker-compose -f "$1" down -t "${DOCKER_TIMEOUT:-120}"
+            fi
         fi
     fi
 }

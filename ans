@@ -526,9 +526,8 @@ if [ "$full" = "true" ] || [ "$start" = "true" ]; then
         start_service "$serviceDef" "$forceRecreate" "$PROJECT_NAME"
         echo "waiting (15s) for MN to start..."
         sleep 15
-        script_sub_path=$(get_json_file_value "$DEF_FILE" "is-up")
 
-        if sh "$BASEDIR/containers/$NODE/$script_sub_path"; then
+        if ! sh "$BASEDIR/is-up"; then
             error "Failed to start node. Exiting..."
             exit 5
         fi

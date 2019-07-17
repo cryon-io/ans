@@ -51,12 +51,25 @@ fi
 require_docker_privileges
 
 COMPOSE_FILE="$BASEDIR/containers/$NODE/docker-compose.yml"
+OVERRIDE_COMPOSE_FILE=$(printf "%s" "$COMPOSE_FILE" | sed "s/.yml$/.override.yml/")
+
 if [ ! -f "$COMPOSE_FILE" ]; then 
     printf "false";
     exit 1;
 fi
 PROJECT_NAME=$(get_json_file_value "$BASEDIR/state/conf.json" "project_name")
 PROJECT_NAME=${PROJECT_NAME:-$NODE}
+
+if [ -f "$OVERRIDE_COMPOSE_FILE" ]; then
+    SERVICES=$(docker-compose -f "$COMPOSE_FILE" -f "$OVERRIDE_COMPOSE_FILE" --project-name "$PROJECT_NAME" ps --services | grep -c -v autoheal)
+    if [ "$(docker-compose -f "$COMPOSE_FILE" -f "$OVERRIDE_COMPOSE_FILE" --project-name "$PROJECT_NAME" ps -q | wc -l)" -ge "$SERVICES" ]; then 
+        printf "true"; 
+        exit 0;
+    else 
+        printf "false";
+        exit 1;
+    fi
+fi
 
 SERVICES=$(docker-compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" ps --services | grep -c -v autoheal)
 if [ "$(docker-compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" ps -q | wc -l)" -ge "$SERVICES" ]; then 
