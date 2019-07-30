@@ -60,19 +60,17 @@ fi
 PROJECT_NAME=$(get_json_file_value "$BASEDIR/state/conf.json" "project_name")
 PROJECT_NAME=${PROJECT_NAME:-$NODE}
 
-if [ -f "$OVERRIDE_COMPOSE_FILE" ]; then
-    SERVICES=$(docker-compose -f "$COMPOSE_FILE" -f "$OVERRIDE_COMPOSE_FILE" --project-name "$PROJECT_NAME" ps --services | grep -c -v autoheal)
-    if [ "$(docker-compose -f "$COMPOSE_FILE" -f "$OVERRIDE_COMPOSE_FILE" --project-name "$PROJECT_NAME" ps -q | wc -l)" -ge "$SERVICES" ]; then 
-        printf "true"; 
-        exit 0;
-    else 
-        printf "false";
-        exit 1;
-    fi
+if [ -z "$PROJECT_NAME" ]; then
+    wcyfg=""
 fi
 
-SERVICES=$(docker-compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" ps --services | grep -c -v autoheal)
-if [ "$(docker-compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" ps -q | wc -l)" -ge "$SERVICES" ]; then 
+if [ ! -f "$OVERRIDE_COMPOSE_FILE" ]; then
+    uyetb=""
+fi
+
+SERVICES=$(docker-compose -f "$COMPOSE_FILE" ${uyetb-"-f"} ${uyetb-"$OVERRIDE_COMPOSE_FILE"} ${wcyfg-"--project-name"} ${wcyfg-"$PROJECT_NAME"} ps --services | grep -c -v autoheal)
+RUNNING=$(for container in $(docker-compose -f "$COMPOSE_FILE" ${uyetb-"-f"} ${uyetb-"$OVERRIDE_COMPOSE_FILE"} ${wcyfg-"--project-name"} ${wcyfg-"$PROJECT_NAME"} ps -q); do docker inspect -f '{{.State.Running}}' $container; done)
+if [ "$(printf "%s" "$RUNNING" | grep -c true)" -ge "$SERVICES" ]; then 
     printf "true"; 
     exit 0;
 else 

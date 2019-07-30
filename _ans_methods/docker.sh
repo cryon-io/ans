@@ -49,24 +49,27 @@ build_service() {
     fi
 }
 
+# $1 path to compose file
+# $2 --force-recreate
+# $3 project name
 start_service() {
     if [ -f "$1" ]; then
-        OVERRIDE_COMPOSE_FILE=$(printf "%s" "$1" | sed "s/.yml$/.override.yml/")
-        if [ -f "$OVERRIDE_COMPOSE_FILE" ]; then
-            if [ -n "$3" ]; then
-                # shellcheck disable=SC2086
-                docker-compose -f "$1" -f "$OVERRIDE_COMPOSE_FILE" --project-name "$3" up -d --remove-orphans -t "${DOCKER_TIMEOUT:-120}" $2
-            else
-                # shellcheck disable=SC2086
-                docker-compose -f "$1" -f "$OVERRIDE_COMPOSE_FILE" up -d --remove-orphans -t "${DOCKER_TIMEOUT:-120}" $2
-            fi
-        else
-            if [ -n "$3" ]; then
-                # shellcheck disable=SC2086
-                docker-compose -f "$1" --project-name "$3" up -d --remove-orphans -t "${DOCKER_TIMEOUT:-120}" $2
-            else
-                # shellcheck disable=SC2086
-                docker-compose -f "$1" up -d --remove-orphans -t "${DOCKER_TIMEOUT:-120}" $2
+        OVERRIDE_COMPOSE_FILE="$(printf "%s" "$1" | sed "s/.yml$/.override.yml/")"
+        
+        if [ ! -f "$OVERRIDE_COMPOSE_FILE" ]; then
+            mdwcf=""
+        fi
+
+        if [ -z "$3" ]; then
+            ltmbm=""
+        fi
+
+        if ! docker-compose -f "$1" ${mdwcf-"-f"} ${mdwcf-"$OVERRIDE_COMPOSE_FILE"} ${ltmbm-"--project-name"} ${ltmbm-"$3"} up -d --remove-orphans -t "${DOCKER_TIMEOUT:-120}" "$2"; then
+            # fall back in case of failing recreate
+            if [ "$2" = "--force-recreate" ]; then
+                if docker-compose -f "$1" ${mdwcf-"-f"} ${mdwcf-"$OVERRIDE_COMPOSE_FILE"} ${ltmbm-"--project-name"} ${ltmbm-"$3"}  build && docker-compose -f "$1" ${mdwcf-"-f"} ${mdwcf-"$OVERRIDE_COMPOSE_FILE"} ${ltmbm-"--project-name"} ${ltmbm-"$3"}  down -t "${DOCKER_TIMEOUT:-120}"; then
+                    docker-compose -f "$1" ${mdwcf-"-f"} ${mdwcf-"$OVERRIDE_COMPOSE_FILE"} ${ltmbm-"--project-name"} ${ltmbm-"$3"}  up -d
+                fi
             fi
         fi
     fi
