@@ -64,11 +64,15 @@ start_service() {
             ltmbm=""
         fi
 
-        if ! docker-compose -f "$1" ${mdwcf-"-f"} ${mdwcf-"$OVERRIDE_COMPOSE_FILE"} ${ltmbm-"--project-name"} ${ltmbm-"$3"} up -d --remove-orphans -t "${DOCKER_TIMEOUT:-120}" "$2"; then
+        if [ -z "$2" ]; then
+            eksxq=""
+        fi
+
+        if ! docker-compose -f "$1" ${mdwcf-"-f"} ${mdwcf-"$OVERRIDE_COMPOSE_FILE"} ${ltmbm-"--project-name"} ${ltmbm-"$3"} up -d --remove-orphans ${eksxq-"$2"}; then
             # fall back in case of failing recreate
             if [ "$2" = "--force-recreate" ]; then
-                if docker-compose -f "$1" ${mdwcf-"-f"} ${mdwcf-"$OVERRIDE_COMPOSE_FILE"} ${ltmbm-"--project-name"} ${ltmbm-"$3"}  build && docker-compose -f "$1" ${mdwcf-"-f"} ${mdwcf-"$OVERRIDE_COMPOSE_FILE"} ${ltmbm-"--project-name"} ${ltmbm-"$3"}  down -t "${DOCKER_TIMEOUT:-120}"; then
-                    docker-compose -f "$1" ${mdwcf-"-f"} ${mdwcf-"$OVERRIDE_COMPOSE_FILE"} ${ltmbm-"--project-name"} ${ltmbm-"$3"}  up -d
+                if docker-compose -f "$1" ${mdwcf-"-f"} ${mdwcf-"$OVERRIDE_COMPOSE_FILE"} ${ltmbm-"--project-name"} ${ltmbm-"$3"} build && docker-compose -f "$1" ${mdwcf-"-f"} ${mdwcf-"$OVERRIDE_COMPOSE_FILE"} ${ltmbm-"--project-name"} ${ltmbm-"$3"} down; then
+                    docker-compose -f "$1" ${mdwcf-"-f"} ${mdwcf-"$OVERRIDE_COMPOSE_FILE"} ${ltmbm-"--project-name"} ${ltmbm-"$3"} up -d
                 fi
             fi
         fi
@@ -80,15 +84,15 @@ stop_service() {
         OVERRIDE_COMPOSE_FILE=$(printf "%s" "$1" | sed "s/.yml$/.override.yml/")
         if [ -f "$OVERRIDE_COMPOSE_FILE" ]; then
             if [ -n "$2" ]; then
-                docker-compose -f "$1" -f "$OVERRIDE_COMPOSE_FILE" --project-name "$2" down -t "${DOCKER_TIMEOUT:-120}"
+                docker-compose -f "$1" -f "$OVERRIDE_COMPOSE_FILE" --project-name "$2" down
             else
-                docker-compose -f "$1" -f "$OVERRIDE_COMPOSE_FILE" down -t "${DOCKER_TIMEOUT:-120}"
+                docker-compose -f "$1" -f "$OVERRIDE_COMPOSE_FILE" down
             fi
         else
             if [ -n "$2" ]; then
-                docker-compose -f "$1" --project-name "$2" down -t "${DOCKER_TIMEOUT:-120}"
+                docker-compose -f "$1" --project-name "$2" down
             else
-                docker-compose -f "$1" down -t "${DOCKER_TIMEOUT:-120}"
+                docker-compose -f "$1" down
             fi
         fi
     fi
