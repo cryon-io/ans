@@ -12,5 +12,9 @@
     "SNODE_MN" : "https://github.com/cryon-io/docker-snode-mn.git",
     "ZEN_SECURE": "https://github.com/cryon-io/docker-zen-secure-node.git",
     "XSG_MN": "https://github.com/cryon-io/docker-snowgem-mn.git",
-    "PIRL_CN": "https://github.com/cryon-io/docker-pirl-cn.git"
+    "PIRL_CN": "https://github.com/cryon-io/docker-pirl-cn.git",
+    "XERO_CN": "https://github.com/cryon-io/ans-xero-cn.git",
+    "XERO_XN": "https://github.com/cryon-io/ans-xero-xn.git",
+    "XERO_LN": "https://github.com/cryon-io/ans-xero-ln.git",
+    "XERO_SN": "https://github.com/cryon-io/ans-xero-sn.git"
 }
