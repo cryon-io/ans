@@ -476,7 +476,7 @@ serviceDef="$BASEDIR/containers/$NODE/docker-compose.yml"
 # build service
 if [ "$full" = "true" ] || [ "$build" = "true" ]; then
     if [ "$user" = "true" ]; then
-        if ! runuser -l "$USER" -c "sh $PATH_TO_ANS -b --passed"; then
+        if ! runuser -l "$USER" -c "sh $PATH_TO_ANS -b --passed -nc"; then
             error "Failed to build service for $NODE"
             exit 13
         fi
