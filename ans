@@ -441,6 +441,7 @@ if [ "$bind" = "true" ]; then
             info "Setting binding '$BIND'"
             BIND_PORT=$(echo "$BIND" | sed 's/.*://g')
             NEW_COMPOSE=$(sed "s/- \".*:$BIND_PORT\"/- \"$BIND\"/g" "$BASEDIR/containers/$NODE/docker-compose.yml")
+            NEW_COMPOSE=$(printf "%s" "$NEW_COMPOSE" | sed "s/- \".*:$BIND_PORT\/udp\"/- \"$BIND\"/g")
             echo "$NEW_COMPOSE" >"$BASEDIR/containers/$NODE/docker-compose.yml"
             echo "$BIND" >>"$BASEDIR/state/binds"
             ;;
@@ -452,6 +453,7 @@ elif [ -f "$BASEDIR/state/binds" ] && [ ! "$passed" = "true" ]; then
             # info "Reapplying binding '$line'"
             BIND_PORT=$(echo "$line" | sed 's/.*://g')
             NEW_COMPOSE=$(sed "s/- \".*:$BIND_PORT\"/- \"$line\"/g" "$BASEDIR/containers/$NODE/docker-compose.yml")
+            NEW_COMPOSE=$(printf "%s" "$NEW_COMPOSE" | sed "s/- \".*:$BIND_PORT\/udp\"/- \"$BIND\"/g")
             echo "$NEW_COMPOSE" >"$BASEDIR/containers/$NODE/docker-compose.yml"
         fi
     done <"$BASEDIR/state/binds"
