@@ -218,6 +218,7 @@ fi
 
 # connect ANS repository in case it was downloaded as zip
 git --git-dir="$BASEDIR/.git" --work-tree="$BASEDIR" remote get-url origin >/dev/null 2>&1 ||
+    git --git-dir="$BASEDIR/.git" --work-tree="$BASEDIR" config remote.origin.url >/dev/null 2>&1 ||
     init_repository "$BASEDIR" "https://github.com/cryon-io/ans.git"
 
 ### Project
